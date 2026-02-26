@@ -1,5 +1,6 @@
 name: RR_to_SS_zaiko
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */4 * * *'  # 4時間ごと
 

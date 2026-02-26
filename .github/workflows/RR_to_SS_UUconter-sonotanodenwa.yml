@@ -1,5 +1,6 @@
 name: RR_to_SS_UUconter-sonotanodenwa
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 8 * * *'  # 毎日8時（UTC→JST+9なので実際は17時）※後述
 

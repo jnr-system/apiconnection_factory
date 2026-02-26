@@ -1,5 +1,6 @@
 name: Weather to Spreadsheet
 on:
+  workflow_dispatch:
   schedule:
     - cron: '20 8 * * *'  # 毎日8時20分UTC
 
