@@ -1,0 +1,6 @@
+google-generativeai
+gspread
+oauth2client
+pandas
+pytz
+requests
