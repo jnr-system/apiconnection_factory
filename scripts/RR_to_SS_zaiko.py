@@ -6,6 +6,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from pathlib import Path
 from datetime import datetime
+import os
+import json
 
 # ==============================================================================
 # 設定エリア
@@ -13,7 +15,7 @@ from datetime import datetime
 
 # ■ 楽楽販売の設定
 RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
-RAKURAKU_TOKEN = "c2lu3A6RCMM6PmizVcNqQ9Rt6uzl0ouiAU1yTYtfkxJnN5EmE1iAfJcTLidl8BzG"
+RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
 RAKURAKU_SCHEMA_ID = "101296"
 RAKURAKU_SEARCH_ID = "104283"
@@ -22,7 +24,6 @@ RAKURAKU_LIST_ID   = "101100"
 # ■ Googleスプレッドシートの設定
 SPREADSHEET_KEY = "1kfTsCQPKGSFsSPIvuPJ4Yi9SAzXC_hfT5FHWCNm5IuU"
 SHEET_NAME = "楽楽販売在庫表"
-JSON_KEY_FILE = "google_secret.json"
 
 # ■ ログファイルの保存先
 LOG_FILE_PATH = Path(__file__).parent / "inventory_log.txt"
@@ -100,14 +101,10 @@ def main():
     # 2. Googleスプレッドシートを更新
     write_log("Googleスプレッドシートに接続中...")
     
-    key_path = Path(__file__).parent / JSON_KEY_FILE
-    if not key_path.exists():
-        write_log(f"エラー: 鍵ファイル({JSON_KEY_FILE})が見つかりません。")
-        return
-
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
 
         workbook = client.open_by_key(SPREADSHEET_KEY)

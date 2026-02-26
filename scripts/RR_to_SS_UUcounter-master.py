@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import time
 import re
+import os
 
 # ==============================================================================
 # ■ 設定エリア (ここを変更してください)
@@ -17,17 +18,16 @@ import re
 
 
 # 1. Gemini APIキー
-GEMINI_API_KEY = "AIzaSyCfVqwk5yOVyD7ETBh46A5s1E3SxAH6QVE"
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 GEMINI_MODEL_NAME = "gemini-3-flash-preview"
 
 # 2. Googleスプレッドシート設定
-GOOGLE_JSON_KEY = "google_secret.json"
 SPREADSHEET_KEY = "1N606OaDTizfMskMh09INPPfTOk2xIVCuRFgl1eUjKEY"
 
 # 3. 楽楽販売 API設定
 RR_DOMAIN   = "hntobias.rakurakuhanbai.jp"
 RR_ACCOUNT  = "mspy4wa"
-RR_TOKEN    = "ixO2U7jSUMXCaPNG51jg8w3uFgrYdxWixJgm1UTH4WipnGZrNTOpvKVWhoni8gzv"
+RR_TOKEN    = os.environ["RAKURAKU_TOKEN"]
 RR_API_URL  = f"https://{RR_DOMAIN}/{RR_ACCOUNT}/api/csvexport/version/v1"
 
 # 4. 楽楽販売 DB設定
@@ -295,10 +295,10 @@ def classify_all_with_gemini(df):
 def update_spreadsheet_daily(counts_dict, target_day_int, sheet_name):
     """日別シート更新 (UUのみ)"""
     write_log(f"日別シート '{sheet_name}' (Day={target_day_int}) 更新...")
-    key_path = Path(__file__).parent / GOOGLE_JSON_KEY
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_KEY).worksheet(sheet_name)
     except Exception as e:
@@ -326,10 +326,10 @@ def update_spreadsheet_daily(counts_dict, target_day_int, sheet_name):
 def update_spreadsheet_total(total_counts, target_month, sheet_name="全体"):
     """全体シート更新 (累積加算 & 月別横展開)"""
     write_log(f"全体シート '{sheet_name}' ({target_month}月) 更新...")
-    key_path = Path(__file__).parent / GOOGLE_JSON_KEY
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_KEY).worksheet(sheet_name)
     except Exception as e:

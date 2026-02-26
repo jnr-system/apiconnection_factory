@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 import csv
 import io
-import time  # ★追加: 休憩用モジュール
+import time
+import os
 
 # ==============================================================================
 # 設定エリア
@@ -15,7 +16,7 @@ import time  # ★追加: 休憩用モジュール
 
 # 楽楽販売の設定
 RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
-RAKURAKU_TOKEN = "c2lu3A6RCMM6PmizVcNqQ9Rt6uzl0ouiAU1yTYtfkxJnN5EmE1iAfJcTLidl8BzG"
+RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
 # 以前教えてもらったID情報
 RAKURAKU_SCHEMA_ID = "101357"  # データベースID
@@ -23,8 +24,8 @@ RAKURAKU_SEARCH_ID = "105786"  # 絞込み設定ID
 RAKURAKU_LIST_ID   = "101263"  # レコード一覧画面設定ID
 
 # RMS API設定
-RMS_SERVICE_SECRET = "SP430009_FkH4HrpLeoYsLFJz"
-RMS_LICENSE_KEY = "SL430009_H1ntjtEZdZ41P1zA"
+RMS_SERVICE_SECRET = os.environ["RMS_SERVICE_SECRET"]
+RMS_LICENSE_KEY = os.environ["RMS_LICENSE_KEY"]
 
 # ログファイルパス
 LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
@@ -245,11 +246,9 @@ def main():
                 if upd_res.status_code == 200:
                     write_log(f"[成功] RMS:{rms_number} -> 楽楽ID:{key_id} を更新しました。")
                     update_count += 1
-                    # ★ここが重要！連続アクセスを避けるために1秒休憩する
                     time.sleep(1.0)
                 else:
                     write_log(f"[失敗] ID:{key_id} の更新失敗: {upd_res.status_code} {upd_res.text}")
-                    # 失敗した場合も念のため少し待つ
                     time.sleep(1.0)
                     
             except Exception as e:

@@ -8,6 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 from pathlib import Path
 import time
+import os
 
 # ==============================================================================
 # ■ 設定エリア
@@ -15,27 +16,26 @@ import time
 
 # 1. 実行対象の「基準日」指定 (YYYY/MM/DD 形式)
 MANUAL_TARGET_DATE = ""  
-DAYS_TO_SYNC = 1 # 過去10日間をまるっと更新
+DAYS_TO_SYNC = 1
 
 # 2. Gemini APIキー
-GEMINI_API_KEY = "AIzaSyCfVqwk5yOVyD7ETBh46A5s1E3SxAH6QVE" # ★GeminiのAPIキーを入れてください
-GEMINI_MODEL_NAME = "gemini-3-flash-preview" # ★推奨モデル
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+GEMINI_MODEL_NAME = "gemini-3-flash-preview"
 
 # 3. Googleスプレッドシート設定
-GOOGLE_JSON_KEY = "google_secret.json"
-SPREADSHEET_KEY = "1ETKVEAHVJV5NZ9bE4TTmcgsAI3FoNq1_V0xBCoYdrt0" # ★スプレッドシートのID
+SPREADSHEET_KEY = "1ETKVEAHVJV5NZ9bE4TTmcgsAI3FoNq1_V0xBCoYdrt0"
 
 # 4. 楽楽販売 API設定
 RR_DOMAIN  = "hntobias.rakurakuhanbai.jp"
 RR_ACCOUNT = "mspy4wa"
-RR_TOKEN   = "ixO2U7jSUMXCaPNG51jg8w3uFgrYdxWixJgm1UTH4WipnGZrNTOpvKVWhoni8gzv"
+RR_TOKEN   = os.environ["RAKURAKU_TOKEN"]
 RR_API_URL = f"https://{RR_DOMAIN}/{RR_ACCOUNT}/api/csvexport/version/v1"
 
 # 5. 楽楽販売 DB設定 (問い合わせ管理)
 DB_INQUIRY = {
     "dbSchemaId": "101181",
     "listId":     "101446", 
-    "searchIds":  ["107226", "107228"], # ★先月・今月用の検索条件IDを設定
+    "searchIds":  ["107226", "107228"],
     "cols": {
         "id":       "記録ID",      
         "date":     "登録日",      
@@ -46,10 +46,8 @@ DB_INQUIRY = {
 }
 
 # 6. スプレッドシートの書き込み位置設定
-COL_START = 3 # C列（1日の書き込みスタート列）
+COL_START = 3
 
-# ★スプレッドシートの「書き込み行番号」のマッピング
-# 実際のシートの行番号に合わせて書き換えてください。
 ROW_MAP = {
     "給湯器（UU）": 6,
     "給湯器（修理）": 7,
@@ -202,7 +200,6 @@ def classify_all_with_gemini(df):
     return results_map
 
 def map_final_label(category, sub_category):
-    """AIの判定結果を11項目の最終ラベルに変換する"""
     c = str(category).strip()
     s = str(sub_category).strip()
 
@@ -225,11 +222,13 @@ def map_final_label(category, sub_category):
 
 def update_spreadsheet_cells(df_target, target_dates):
     write_log("スプレッドシートを更新中...")
-    key_path = Path(__file__).parent / GOOGLE_JSON_KEY
+    
+    # 環境変数からサービスアカウントJSONを読み込む
+    creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         workbook = client.open_by_key(SPREADSHEET_KEY)
     except Exception as e:
@@ -253,7 +252,7 @@ def update_spreadsheet_cells(df_target, target_dates):
             continue
             
         target_day = d.day
-        target_col = COL_START + (target_day - 1) # C列からスタート
+        target_col = COL_START + (target_day - 1)
         
         subset = df_target[df_target["日付_単体"] == d] if not df_target.empty else pd.DataFrame()
         
@@ -262,7 +261,6 @@ def update_spreadsheet_cells(df_target, target_dates):
         else:
             counts = {}
 
-        # 11項目すべてについて、その日の件数をセルにセットする
         for label_name, row_idx in ROW_MAP.items():
             count_val = int(counts.get(label_name, 0))
             display_val = count_val if count_val > 0 else ""
@@ -300,10 +298,8 @@ def main():
     if df_target.empty:
         return
 
-    # Gemini APIで判定
     ai_results = classify_all_with_gemini(df_target)
 
-    # 判定結果をDataFrameに結合して11分類ラベルに変換
     final_labels = []
     cols = DB_INQUIRY["cols"]
     for _, row in df_target.iterrows():
@@ -312,18 +308,15 @@ def main():
         cat = res.get("category", "不明")
         sub = res.get("sub_category", "その他")
         
-        # 変換関数を通す
         label = map_final_label(cat, sub)
         final_labels.append(label)
 
     df_target["最終ラベル"] = final_labels
 
-    # ログ出力（確認用）
     log_filename = f"log_問い合わせ集計_{target_dates[0].strftime('%Y%m%d')}_{target_dates[-1].strftime('%Y%m%d')}.csv"
     df_target.to_csv(log_filename, index=False, encoding="utf-8-sig")
     write_log(f"ログを保存しました: {log_filename}")
 
-    # スプレッドシート更新
     update_spreadsheet_cells(df_target, target_dates)
     
     write_log("全処理完了。")

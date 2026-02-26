@@ -14,5 +14,5 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python scripts/RR_to_SS_zaiko.py
         env:
-          RAKURAKU_API_KEY: ${{ secrets.RAKURAKU_API_KEY }}
+          RAKURAKU_TOKEN: ${{ secrets.RAKURAKU_TOKEN }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}

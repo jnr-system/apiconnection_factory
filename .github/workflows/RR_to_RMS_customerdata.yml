@@ -14,5 +14,6 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python scripts/RR_to_RMS_customerdata.py
         env:
-          RMS_API_KEY: ${{ secrets.RMS_API_KEY }}
-          RAKURAKU_API_KEY: ${{ secrets.RAKURAKU_API_KEY }}
+          RAKURAKU_TOKEN: ${{ secrets.RAKURAKU_TOKEN }}
+          RMS_SERVICE_SECRET: ${{ secrets.RMS_SERVICE_SECRET }}
+          RMS_LICENSE_KEY: ${{ secrets.RMS_LICENSE_KEY }}

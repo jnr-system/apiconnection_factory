@@ -5,12 +5,13 @@ from gspread.utils import rowcol_to_a1, a1_to_rowcol
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
+import os
+import json
 
 # ==============================================================================
 # 設定エリア
 # ==============================================================================
 SPREADSHEET_KEY = "1jmBAudOWcED7D9jIxAVvpXBfvwgJIV4B1TEJEfkVs-w"
-JSON_KEY_FILE = "google_secret.json"
 
 # ★「北海道の1日」が始まるセル位置（ここを基準に列をずらします）
 BASE_CELL = "B62"
@@ -127,10 +128,6 @@ def main():
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {target_year}年{target_month}月{target_day}日分のデータを取得します -> シート名: {sheet_name}")
 
-    key_path = Path(__file__).parent / JSON_KEY_FILE
-    if not key_path.exists():
-        print("エラー: 鍵ファイルが見つかりません。")
-        return
 
     # 2. 書き込み位置の計算
     # BASE_CELL (B62) は "1日" の列。
@@ -154,7 +151,8 @@ def main():
     # 4. 書き込み
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         workbook = client.open_by_key(SPREADSHEET_KEY)
 
