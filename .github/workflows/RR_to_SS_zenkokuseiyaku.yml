@@ -1,6 +1,5 @@
 name: RR_to_SS_zenkokuseiyaku
 on:
-  workflow_dispatch:
   schedule:
     - cron: '10 8 * * *'  # 毎日8時10分UTC
 

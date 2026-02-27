@@ -1,6 +1,5 @@
 name: RR_to_RMS_customerdata
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 * * * *'  # 毎時0分
 
