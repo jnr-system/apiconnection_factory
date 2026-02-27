@@ -1,3 +1,8 @@
+"""
+【実行内容】
+気象庁の過去の気象データ検索ページから、前日の各都道府県（主要都市）の最低気温を取得し、
+Googleスプレッドシートの指定された月別シート（例: "1月_new"）の日付列に書き込みます。
+"""
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials

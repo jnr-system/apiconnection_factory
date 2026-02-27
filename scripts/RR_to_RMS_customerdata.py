@@ -1,3 +1,8 @@
+"""
+【実行内容】
+楽楽販売から「待機中の注文」リストを取得し、楽天RMS APIを利用して対応する注文情報を検索・取得します。
+RMSから取得した注文者情報や配送先情報を、楽楽販売の該当レコードにAPI経由で更新（書き込み）します。
+"""
 import base64
 import requests
 from datetime import datetime, timedelta

@@ -1,3 +1,9 @@
+"""
+【実行内容】
+楽楽販売APIから問い合わせデータを取得し、Gemini API (AI) を使用して問い合わせ内容（UU、修理、その他など）や
+商材カテゴリを自動分類します。分類結果に基づき、Googleスプレッドシートの日別シート（UU件数）および
+全体シート（詳細分類集計）を更新します。
+"""
 import pandas as pd
 import requests
 import io

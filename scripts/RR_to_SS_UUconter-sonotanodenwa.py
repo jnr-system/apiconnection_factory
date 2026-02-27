@@ -1,3 +1,8 @@
+"""
+【実行内容】
+楽楽販売の問い合わせ管理DBからデータを取得し、Gemini API (AI) を用いて「UU」「修理」「止」「その他電話」などに分類します。
+分類結果を集計し、Googleスプレッドシートの月別シートに日別・カテゴリ別の件数を書き込みます。
+"""
 import pandas as pd
 import requests
 import io
