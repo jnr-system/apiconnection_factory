@@ -19,7 +19,7 @@ import os
 # 設定エリア
 # ==============================================================================
 
-# 楽楽販売の設定
+# 楽楽販売の設定をしました
 RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
 RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
