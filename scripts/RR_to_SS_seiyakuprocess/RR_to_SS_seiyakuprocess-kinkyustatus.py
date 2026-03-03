@@ -8,6 +8,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
+import os
 
 # ==============================================================================
 # ■ 設定エリア
@@ -16,20 +17,19 @@ import re
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = "2026/02/25" 
-TARGET_DATE_END   = "2026/02/27"
+TARGET_DATE_START = "" 
+TARGET_DATE_END   = ""
 
 # 1-2. スナップショット保存先（スクリプトと同じフォルダ内の snapshots/ フォルダ）
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
 # 2. Googleスプレッドシート設定
-GOOGLE_JSON_KEY = "google_secret.json"
 SPREADSHEET_KEY = "1AB5qDa4-k2kcgDTLe-agPfYNw69KlhdoHzukfavfFqQ"
 
 # 3. 楽楽販売 API設定
 RR_DOMAIN  = "hntobias.rakurakuhanbai.jp"
 RR_ACCOUNT = "mspy4wa"
-RR_TOKEN   = "ixO2U7jSUMXCaPNG51jg8w3uFgrYdxWixJgm1UTH4WipnGZrNTOpvKVWhoni8gzv"
+RR_TOKEN   = os.environ["RAKURAKU_TOKEN"]
 RR_API_URL = f"https://{RR_DOMAIN}/{RR_ACCOUNT}/api/csvexport/version/v1"
 
 # 4. 楽楽販売 DB設定 (問い合わせ管理)
@@ -396,11 +396,11 @@ def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target
       - 成約DB:       成約日が当月内で、かつ対象日以前の案件
     """
     write_log("スプレッドシートを更新中...")
-    key_path = Path(__file__).parent / GOOGLE_JSON_KEY
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
     try:
-        creds    = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds    = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client   = gspread.authorize(creds)
         workbook = client.open_by_key(SPREADSHEET_KEY)
     except Exception as e:

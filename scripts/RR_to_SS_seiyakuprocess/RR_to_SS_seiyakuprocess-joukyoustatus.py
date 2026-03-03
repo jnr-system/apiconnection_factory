@@ -7,6 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 from pathlib import Path
+import os
 
 # ==============================================================================
 # ■ 設定エリア
@@ -22,13 +23,12 @@ TARGET_DATE_END   = ""
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
 # 2. Googleスプレッドシート設定
-GOOGLE_JSON_KEY = "google_secret.json"
 SPREADSHEET_KEY = "19l5TYkXN1SdwrWNVkgKHLymx4_chqSunOrY-2rAqW14" # ★スプレッドシートID
 
 # 3. 楽楽販売 API設定
 RR_DOMAIN  = "hntobias.rakurakuhanbai.jp"
 RR_ACCOUNT = "mspy4wa"
-RR_TOKEN   = "ixO2U7jSUMXCaPNG51jg8w3uFgrYdxWixJgm1UTH4WipnGZrNTOpvKVWhoni8gzv"
+RR_TOKEN   = os.environ["RAKURAKU_TOKEN"]
 RR_API_URL = f"https://{RR_DOMAIN}/{RR_ACCOUNT}/api/csvexport/version/v1"
 
 # 4. 楽楽販売 DB設定 (問い合わせ管理)
@@ -259,11 +259,11 @@ def get_kpi_counts(df):
 def update_spreadsheet_cells(df_current, target_dates):
     """スプレッドシートを更新する"""
     write_log(f"スプレッドシートを更新中...")
-    key_path = Path(__file__).parent / GOOGLE_JSON_KEY
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(str(key_path), scope)
+        creds_dict = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         workbook = client.open_by_key(SPREADSHEET_KEY)
     except Exception as e:
