@@ -1,3 +1,4 @@
+# cronスクリプト用
 google-generativeai
 google-genai
 gspread
@@ -6,3 +7,10 @@ openpyxl
 pandas
 pytz
 requests
+
+# photo-api (FastAPI) 用
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+google-cloud-storage>=2.16.0
+google-auth>=2.29.0

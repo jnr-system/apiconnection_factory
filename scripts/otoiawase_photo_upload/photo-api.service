@@ -1,0 +1,17 @@
+[Unit]
+Description=Photo Upload API (GCS + 楽楽販売連携)
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/project/apiconnection_factory/scripts/otoiawase_photo_upload
+# 環境変数は /etc/photo-api.env に記述してください（後述）
+EnvironmentFile=/etc/apiconnection.env
+ExecStart=/root/project/apiconnection_factory/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
