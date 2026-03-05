@@ -10,8 +10,16 @@ import csv
 import io
 import json
 import os
+from pathlib import Path
 from typing import Annotated, List, Optional
 from urllib.parse import quote
+
+# .env ファイルの自動読み込み（ローカル開発用）
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # 本番環境では python-dotenv がなくても動作する
 
 import requests
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -59,13 +67,23 @@ SERVER_BASE_URL = os.environ.get("SERVER_BASE_URL", "http://127.0.0.1:8000")
 # ──────────────────────────────────────────────
 
 def _get_gcs_credentials() -> service_account.Credentials:
-    """環境変数 GOOGLE_SERVICE_ACCOUNT_JSON からサービスアカウント認証情報を生成する。"""
+    """GCS 認証情報を取得する。
+    優先順位:
+    1. 環境変数 GOOGLE_SERVICE_ACCOUNT_JSON（JSON文字列）
+    2. 同フォルダの google_secret.json ファイル
+    """
     raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if not raw:
-        raise RuntimeError(
-            "環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません。\n"
-            "サービスアカウントのJSONキーの内容を環境変数にセットしてください。"
-        )
+        # ローカル開発用：google_secret.json を自動探索
+        secret_path = Path(__file__).parent / "google_secret.json"
+        if secret_path.exists():
+            raw = secret_path.read_text(encoding="utf-8")
+        else:
+            raise RuntimeError(
+                "GCS認証情報が見つかりません。\n"
+                "・環境変数 GOOGLE_SERVICE_ACCOUNT_JSON を設定するか、\n"
+                f"・{secret_path} を配置してください。"
+            )
     creds_dict = json.loads(raw)
     return service_account.Credentials.from_service_account_info(
         creds_dict,

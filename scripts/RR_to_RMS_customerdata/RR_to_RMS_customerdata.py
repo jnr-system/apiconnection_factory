@@ -15,6 +15,13 @@ import io
 import time
 import os
 
+# .env ファイルの自動読み込み（ローカル開発用）
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # 本番環境では python-dotenv がなくても動作する
+
 # ==============================================================================
 # 設定エリア
 # ==============================================================================
