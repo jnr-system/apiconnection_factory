@@ -10,6 +10,11 @@ import csv
 import io
 import json
 import os
+import smtplib
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email import encoders
 from pathlib import Path
 from typing import Annotated, List, Optional
 from urllib.parse import quote
@@ -22,7 +27,7 @@ except ImportError:
     pass  # 本番環境では python-dotenv がなくても動作する
 
 import requests
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 from google.cloud import storage
 from google.oauth2 import service_account
@@ -61,6 +66,15 @@ RAKURAKU_URL_FIELD_ID = os.environ.get("RAKURAKU_URL_FIELD_ID", "115927")  # API
 # このサーバーのベースURL（楽楽販売に書き込む閲覧ページのURL生成に使用）
 # ConoHa VPS の IP またはドメインを SERVER_BASE_URL 環境変数に設定してください
 SERVER_BASE_URL = os.environ.get("SERVER_BASE_URL", "http://127.0.0.1:8000")
+
+# ──────────────────────────────────────────────
+# メール送信設定（Xserver SMTP）
+# ──────────────────────────────────────────────
+
+SMTP_HOST     = os.environ.get("SMTP_HOST", "sv1227.xserver.jp")
+SMTP_PORT     = int(os.environ.get("SMTP_PORT", "465"))
+EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", "customer9@syouzikiya.jp")
+EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]  # Xserver メールパスワード
 
 # ──────────────────────────────────────────────
 # GCS クライアントの初期化
@@ -460,10 +474,9 @@ async function submitForm() {
         const data = await res.json();
         if (res.ok) {
             let msg = `✅ 送信完了しました！${name} 様のお問い合わせを受け付けました。`;
-            if (data.view_url) msg += `<br>📷 アップロードされた写真：`;
-            if (data.rakuraku?.success) msg += `<br>📔 楽楽販売レコード（ID: ${data.rakuraku.key_id}）を更新しました。`;
-            if (data.rakuraku?.skipped) msg += `<br>⚠️ 楽楽販売: ${data.rakuraku.reason}`;
-            showResult('success', msg, data.view_url);
+            if (data.attached_count > 0) msg += `<br>📷 写真 ${data.attached_count} 枚をメールで送信しました。`;
+            msg += `<br>📧 写真は確認後、自動的にシステムに反映されます。`;
+            showResult('success', msg);
         } else {
             showResult('error', '❌ エラー: ' + (data.detail || '送信に失敗しました'));
         }
@@ -484,12 +497,53 @@ function showResult(type, msg, viewUrl) {
     return HTMLResponse(content=html)
 
 
+def _background_upload_and_notify(
+    customer_name: str,
+    phone: str,
+    file_data: list[dict],
+    email_body: str,
+):
+    """
+    バックグラウンドで実行:
+    1. メール送信（バックエンドのテスト用）
+    """
+    # ── 1. メール送信（通知用）──
+    try:
+        msg = MIMEMultipart()
+        msg["From"]    = EMAIL_ADDRESS
+        msg["To"]      = EMAIL_ADDRESS
+        msg["Subject"] = f"【写真受付】{customer_name}　TEL:{phone}"
+        msg.attach(MIMEText(email_body, "plain", "utf-8"))
+
+        for fd in file_data:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(fd["content"])
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f'attachment; filename="{fd["filename"]}"',
+            )
+            if fd["content_type"]:
+                part.replace_header("Content-Type", fd["content_type"])
+            msg.attach(part)
+
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+        print(f"[メール送信完了] 件名={msg['Subject']}, 添付={len(file_data)}件")
+    except Exception as e:
+        print(f"[ERROR] メール送信失敗: {e}")
+
+
+
+
 @app.post(
     "/contact/submit",
     summary="お問い合わせ送信処理",
-    description="フォームデータを受け取り、画像をGCSへアップロードし楽楽販売レコードを更新する。",
+    description="フォームデータを受け取り、バックグラウンドでメール送信・GCSアップロード・楽楽販売連携を行う。",
 )
 async def contact_submit(
+    background_tasks: BackgroundTasks,
     name:    Annotated[str, Form()],
     phone:   Annotated[str, Form()],
     email:   Annotated[str, Form()],
@@ -501,57 +555,57 @@ async def contact_submit(
     files:   Annotated[Optional[List[UploadFile]], File()] = None,
 ):
     """
-    フォーム送信処理（テスト環境用）
-    1. 顧客名をフォルダとしてGCSに画像をアップロード
-    2. 電話番号で楽楽販売レコードを検索してURLを書き込む
+    フォーム送信処理
+    1. ファイルを先読みしてレスポンスを即返却
+    2. バックグラウンドで: メール送信 + GCS アップロード + 楽楽販売更新
     """
-    # 電話番号正規化（ハイフン除去 → 楽楽販売の自動処理と一致させる）
-    phone_clean = phone.replace("-", "").replace("ー", "").replace("−", "")
-
-    # ── 画像アップロード ──
-    uploaded = []
-    folder_name = name  # 顧客名をフォルダ名に使用
+    # ── ファイルデータを先読み（レスポンス後にはファイルが閉じるため）──
+    file_data = []
     if files:
-        bucket = get_bucket()
         for upload_file in files:
-            filename = upload_file.filename
-            if not filename:
+            if not upload_file.filename:
                 continue
-            blob_name = f"{GCS_PREFIX}/{folder_name}/{filename}"
-            blob = bucket.blob(blob_name)
-            try:
-                content = await upload_file.read()
-                blob.upload_from_string(
-                    content,
-                    content_type=upload_file.content_type or "application/octet-stream",
-                )
-                uploaded.append(blob_name)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"'{filename}' のアップロードに失敗: {e}")
+            content = await upload_file.read()
+            file_data.append({
+                "filename": upload_file.filename,
+                "content": content,
+                "content_type": upload_file.content_type or "application/octet-stream",
+            })
 
-    # ── 楽楽販売連携（電話番号で検索 → URL書き込み）──
-    rakuraku_result = None
-    view_url = None
-    if uploaded:
-        encoded_folder = quote(folder_name, safe="")
-        view_url = f"{SERVER_BASE_URL}/view/{encoded_folder}"
+    # ── メール本文を作成 ──
+    body_lines = [
+        "【お問い合わせフォームからの送信】",
+        "",
+        f"お名前: {name}",
+        f"電話番号: {phone}",
+        f"メールアドレス: {email}",
+    ]
+    if address:
+        body_lines.append(f"ご住所: {address}")
+    if model:
+        body_lines.append(f"品番: {model}")
+    if status:
+        body_lines.append(f"機器の状況: {status}")
+    if gas:
+        body_lines.append(f"ガスの種類: {gas}")
+    if message:
+        body_lines.append(f"ご質問・ご要望: {message}")
+    email_body = "\n".join(body_lines)
 
-        rakuraku_info = find_rakuraku_record_id(phone_clean)
-        if rakuraku_info:
-            rakuraku_result = update_rakuraku_photo_url(rakuraku_info["key_id"], view_url)
-        else:
-            rakuraku_result = {
-                "skipped": True,
-                "reason": f"電話番号 '{phone}' ({phone_clean}) に一致するレコードが見つかりませんでした（レコード登録後に再試行してください）。"
-            }
+    # ── バックグラウンドタスク登録 ──
+    background_tasks.add_task(
+        _background_upload_and_notify,
+        customer_name=name,
+        phone=phone,
+        file_data=file_data,
+        email_body=email_body,
+    )
 
     return {
-        "message":  f"受付完了。アップロード: {len(uploaded)} 件",
+        "message":  f"受付完了。{len(file_data)} 件の写真を処理中です。",
         "name":     name,
         "phone":    phone,
-        "uploaded": uploaded,
-        "view_url": view_url,
-        "rakuraku": rakuraku_result,
+        "attached_count": len(file_data),
     }
 
 
@@ -761,7 +815,7 @@ async def upload_form():
 # ──────────────────────────────────────────────
 
 @app.get(
-    "/view/{inquiry_id}",
+    "/view/{inquiry_id:path}",
     response_class=HTMLResponse,
     summary="画像を閲覧",
     description=(
