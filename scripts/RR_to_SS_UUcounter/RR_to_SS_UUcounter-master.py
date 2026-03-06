@@ -169,14 +169,17 @@ SYSTEM_PROMPT = """
 # 関数定義
 # ==============================================================================
 
-LOG_FILE_PATH = None
+LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
 
-def write_log(msg):
-    line = f"[{datetime.now().strftime('%H:%M:%S')}] {msg}"
-    print(line)
-    if LOG_FILE_PATH:
+def write_log(message):
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_msg = f"[{now_str}] {message}"
+    print(log_msg)
+    try:
         with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+            f.write(log_msg + "\n")
+    except Exception as e:
+        print(f"ログ書き込みエラー: {e}")
 
 def fetch_rakuraku_csv(settings):
     headers = {"X-HD-apitoken": RR_TOKEN, "Content-Type": "application/json"}
@@ -400,13 +403,12 @@ def update_spreadsheet_total(total_counts, target_month, sheet_name="全体"):
 # ==============================================================================
 
 def main():
-    global LOG_FILE_PATH
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     yesterday  = today - timedelta(days=1)
     start_date = yesterday
     end_date   = yesterday
 
-    LOG_FILE_PATH = str(Path(__file__).parent / "log.txt")
+    write_log("=== 自動分類処理を開始します ===")
 
     write_log(f"処理実行: {start_date.strftime('%Y/%m/%d')} - {end_date.strftime('%Y/%m/%d')}")
 

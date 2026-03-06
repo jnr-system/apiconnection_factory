@@ -122,9 +122,17 @@ CUMULATIVE_ROW_MAP = {
 # ■ 共通関数
 # ==============================================================================
 
-def write_log(msg):
-    now = datetime.now()
-    print(f"[{now.strftime('%H:%M:%S')}] {msg}")
+LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
+
+def write_log(message):
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_msg = f"[{now_str}] {message}"
+    print(log_msg)
+    try:
+        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
+            f.write(log_msg + "\n")
+    except Exception as e:
+        print(f"ログ書き込みエラー: {e}")
 
 def normalize_status(s):
     """

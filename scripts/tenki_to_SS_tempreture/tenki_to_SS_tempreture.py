@@ -28,6 +28,18 @@ SPREADSHEET_KEY = "1jmBAudOWcED7D9jIxAVvpXBfvwgJIV4B1TEJEfkVs-w"
 # ★「北海道の1日」が始まるセル位置（ここを基準に列をずらします）
 BASE_CELL = "B62"
 
+LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
+
+def write_log(message):
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_msg = f"[{now_str}] {message}"
+    print(log_msg)
+    try:
+        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
+            f.write(log_msg + "\n")
+    except Exception as e:
+        print(f"ログ書き込みエラー: {e}")
+
 # ==============================================================================
 # 都道府県リスト
 # ==============================================================================
@@ -138,7 +150,8 @@ def main():
     
     sheet_name = f"{target_month}月_new"
 
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {target_year}年{target_month}月{target_day}日分のデータを取得します -> シート名: {sheet_name}")
+    write_log(f"=== 天気データ取得処理を開始します ===")
+    write_log(f"{target_year}年{target_month}月{target_day}日分のデータを取得します -> シート名: {sheet_name}")
 
 
     # 2. 書き込み位置の計算
@@ -149,7 +162,7 @@ def main():
     target_col = base_col + (target_day - 1)
     target_cell_a1 = rowcol_to_a1(base_row, target_col)
     
-    print(f"書き込み開始セル: {target_cell_a1} (日付: {target_day}日)")
+    write_log(f"書き込み開始セル: {target_cell_a1} (日付: {target_day}日)")
 
     # 3. データ収集（前日分のみ）
     # 縦一列分のリストを作成する [[Hokkaido], [Aomori], ...]
@@ -171,7 +184,7 @@ def main():
         try:
             sheet = workbook.worksheet(sheet_name)
         except:
-            print(f"シート '{sheet_name}' がないため新規作成します。")
+            write_log(f"シート '{sheet_name}' がないため新規作成します。")
             sheet = workbook.add_worksheet(title=sheet_name, rows="100", cols="40")
 
         # ピンポイント書き込み（1列×47行分）
@@ -184,10 +197,10 @@ def main():
         
         sheet.format(range_string, {"horizontalAlignment": "RIGHT"})
         
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 書き込み完了。")
+        write_log(f"完了: スプレッドシートへ書き込みました。")
 
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        write_log(f"エラーが発生しました: {e}")
 
 if __name__ == "__main__":
     main()

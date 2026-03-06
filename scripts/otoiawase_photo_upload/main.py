@@ -32,6 +32,20 @@ from fastapi.responses import HTMLResponse
 from google.cloud import storage
 from google.oauth2 import service_account
 
+from datetime import datetime
+LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
+
+def write_log(msg):
+    try:
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_msg = f"[{now_str}] {msg}"
+        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
+            f.write(log_msg + "\n")
+        import builtins
+        builtins.print(log_msg)
+    except Exception:
+        pass
+
 # ──────────────────────────────────────────────
 # 設定（環境変数から読み込み）
 # ──────────────────────────────────────────────

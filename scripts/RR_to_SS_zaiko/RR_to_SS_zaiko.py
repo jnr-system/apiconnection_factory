@@ -38,7 +38,7 @@ SPREADSHEET_KEY = "1kfTsCQPKGSFsSPIvuPJ4Yi9SAzXC_hfT5FHWCNm5IuU"
 SHEET_NAME = "楽楽販売在庫表"
 
 # ■ ログファイルの保存先
-LOG_FILE_PATH = Path(__file__).parent / "inventory_log.txt"
+LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
 
 # ==============================================================================
 # 共通関数: ログ出力
