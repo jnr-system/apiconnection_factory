@@ -209,3 +209,5 @@ __marimo__/
 # Custom Logs
 *log.txt
 *.log
+*.xlsx
+*.csv
