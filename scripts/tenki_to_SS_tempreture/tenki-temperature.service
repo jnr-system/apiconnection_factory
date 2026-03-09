@@ -1,0 +1,12 @@
+[Unit]
+Description=天気 to SS 気温同期
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/project/apiconnection_factory/scripts/tenki_to_SS_tempreture
+EnvironmentFile=/etc/apiconnection.env
+ExecStart=/root/project/apiconnection_factory/venv/bin/python tenki_to_SS_tempreture.py
+StandardOutput=journal
+StandardError=journal

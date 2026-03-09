@@ -1,0 +1,12 @@
+[Unit]
+Description=RR to RMS Lstage 顧客データ同期
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/project/apiconnection_factory/scripts/RR_to_RMS_Lstage-customerdata
+EnvironmentFile=/etc/apiconnection.env
+ExecStart=/root/project/apiconnection_factory/venv/bin/python RR_to_RMS_Lstage-customerdata.py
+StandardOutput=journal
+StandardError=journal

@@ -26,7 +26,7 @@ except ImportError:
 SPREADSHEET_KEY = "1jmBAudOWcED7D9jIxAVvpXBfvwgJIV4B1TEJEfkVs-w"
 
 # ★「北海道の1日」が始まるセル位置（ここを基準に列をずらします）
-BASE_CELL = "B62"
+BASE_CELL = "B3"
 
 LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
 

@@ -1,0 +1,9 @@
+[Unit]
+Description=天気 to SS 気温同期 タイマー (毎日8時)
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

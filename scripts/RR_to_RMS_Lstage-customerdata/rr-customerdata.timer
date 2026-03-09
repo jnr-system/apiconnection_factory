@@ -1,0 +1,9 @@
+[Unit]
+Description=RR to RMS Lstage 顧客データ同期 タイマー (1時間毎)
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

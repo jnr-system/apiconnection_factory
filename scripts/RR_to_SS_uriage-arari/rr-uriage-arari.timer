@@ -1,0 +1,9 @@
+[Unit]
+Description=RR to SS 売上・粗利実績同期 タイマー (毎日8時)
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
