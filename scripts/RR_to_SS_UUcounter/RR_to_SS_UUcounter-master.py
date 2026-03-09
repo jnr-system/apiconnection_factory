@@ -54,8 +54,7 @@ DB_INQUIRY = {
         "pref":     "都道府県名",  
         "address":  "メール差し込み用：住所",
         "new_type": "新規商品タイプ",
-        "status":   "対応状況ステータス",
-        "history":  "対応履歴"     
+        "status":   "対応状況ステータス"     
     }
 }
 
@@ -79,88 +78,20 @@ PREFECTURES = [
 # ==============================================================================
 
 SYSTEM_PROMPT = """
-あなたは住宅設備の問い合わせデータを分類する熟練オペレーターです。
-以下の「判定ルール」を厳守し、入力されたデータをJSON形式で分類してください。
+あなたは住宅設備の問い合わせデータから「都道府県」を特定する熟練オペレーターです。
+以下の入力データ（住所）を読み取り、関連する都道府県名を特定してJSON形式で返してください。
 
 【入力データ項目】
 - ID
-- ステータス (対応状況)
-- 新規商品タイプ (最優先の判断材料)
-- 対応履歴 (フリーテキスト)
 - 住所
 
-【判定ルール 1: ★最優先・特例判定★ (Absolute Priority)】
-他のあらゆるルール（除外ルール含む）に優先して、以下の文言がある場合は必ず「UU（新規）」としてください。
-たとえステータスが「重複」や「クレーム」であっても、以下の文言があれば「UU」が勝ちます。
-**ただし、「対応履歴」に「不可」や「エリア外」という文言が含まれる場合は、本ルールの対象外（UUとしない）としてください。**
-
-- 「対応履歴」の中に以下のいずれかのフレーズが含まれている場合
-  - **"【交換工事に含まれるもの】"**
-  - **"新設商品"**
-- -> **sub_category="UU"** と判定してください。
-  （categoryは文脈から「給湯器」「エコキュート」などを判定）
-
-【判定ルール 2: 除外・対象外判定 (Exclusion)】
-※ルール1に当てはまらなかったデータのうち、ステータスまたは履歴に以下の言葉が含まれる場合は集計対象外としてください。
-- **「不可」「エリア外」**: これらが含まれる場合は、category="その他", sub_category="その他" としてください。
-- **「重複」**: これが含まれる場合は必ず category="その他", sub_category="その他" としてください。
-- **「クレーム」「削除」「テスト」**: これらも同様に対象外です。
-
-【判定ルール 3: 商材カテゴリ (Category)】
-優先順位の高い順に判定してください。
-
-1. 「新規商品タイプ」に入力がある場合
-   - "給湯器"を含む -> "給湯器"
-   - "エコキュート"または"電気温水器"を含む -> "エコキュート"
-   - "コンロ"を含む -> "コンロ"
-   - "レンジフード"または"食洗機"を含む -> "その他商品"
-
-2. 「対応履歴」から以下の品番・キーワードを探す (タイプが空の場合)
-   - **エコキュート**:
-     - 品番: SRT-, HE-, BE-, EQ, EQN, EQX, TU, BHP-, HWH-, CHP-, CTU-, EHP-
-     - 単語: エコキュート, 電気温水器, ヒートポンプ
-   - **給湯器**:
-     - 品番: GT-, GTH-, GQ-, GRQ-, OTQ-, OTX-, OQB-, OX-, OH-, RUF-, RVD-, RUX-, RFS-, FH-, PH-, GX-, GH-, GFK-, KIB-, IB-
-     - 単語: エコジョーズ, 給湯器, 風呂釜
-   - **コンロ**:
-     - 単語: コンロ, ビルトイン, IH, PD-, RHS
-   - **その他商品**:
-     - 単語: レンジフード, 食洗機, 水栓, トイレ
-
-※どれにも当てはまらない場合は "不明" とする。
-
-【判定ルール 4: サブカテゴリ (Sub Category) - ★ステータス判定★】
-※ルール1（特例）に該当しない場合のみ、以下の順序で判定してください。
-
-1. **新規問い合わせ (UU) とするステータス**
-   - **「1」で始まる全てのステータス**
-     - 1-00, 1-10, 1-50 (成約) はもちろん、
-     - **1-60 (キャンセル), 1-61 (失注) も全て「UU」**として扱ってください。（※エリア外は除外）
-   - **「【E】」** (エディオン紹介) で始まるステータス
-   - -> **sub_category="UU"**
-
-2. **修理 (Repair) とするステータス**
-   - **「修理対応依頼」** が含まれるもの
-   - -> **sub_category="修理"**
-
-3. **その他 (Other) とするステータス**
-   - 「重複」「再工事」「残工事」「クレーム」「連絡禁止」「その他（問い合わせ以外の物）」
-   - -> **sub_category="その他電話"**
-   - **★特例: ただし「その他（問い合わせ以外の物）」のステータスでも、対応履歴に「見積」というワードが含まれる場合は sub_category="UU" としてください。**
-
-4. **キーワードによる判定 (ステータスが空欄の場合のみ)**
-   - "お湯が出ない", "点火しない", "水しか" -> "止" (緊急)
-   - "修理", "故障", "エラー" -> "修理"
-   - "見積", "交換" -> "UU"
-   - "営業", "間違い" -> "その他電話"
-
-【判定ルール 5: 都道府県 (Prefecture)】
-- 住所または履歴から都道府県名を特定してください。
-- 特定できない場合は "不明" としてください。
+【判定ルール】
+1. 住所から都道府県名を特定してください。
+2. 特定できない場合は "不明" としてください。
 
 【出力JSON形式】
 [
-  {"id": "...", "category": "給湯器", "sub_category": "UU", "prefecture": "東京都"},
+  {"id": "...", "prefecture": "東京都"},
   ...
 ]
 """
@@ -219,7 +150,6 @@ def load_and_clean_data(start_date, end_date):
     
     id_col = DB_INQUIRY["cols"]["id"]
     date_col = DB_INQUIRY["cols"]["date"]
-    hist_col = DB_INQUIRY["cols"]["history"]
     type_col = DB_INQUIRY["cols"]["new_type"]
     stat_col = DB_INQUIRY["cols"]["status"]
     addr_col = DB_INQUIRY["cols"]["address"]
@@ -242,15 +172,13 @@ def load_and_clean_data(start_date, end_date):
     df['集計日'] = df['登録日'].dt.date
     df['Python_Pref'] = df.apply(get_prefecture_simple, axis=1)
     
-    hist_series = df.groupby(id_col)[hist_col].apply(lambda x: " ".join([str(v) for v in x if pd.notna(v)]))
     cols_to_keep = [id_col, '集計日', 'Python_Pref']
     for c in [type_col, stat_col, addr_col]:
         if c in df.columns: cols_to_keep.append(c)
     
-    df_unique = df[cols_to_keep].groupby(id_col).first().reset_index()
-    grouped = pd.merge(df_unique, hist_series, on=id_col, how='left')
+    grouped = df[cols_to_keep].groupby(id_col).first().reset_index()
     
-    rename_map = {id_col: '記録ID', hist_col: '対応履歴', type_col: '新規商品タイプ', stat_col: 'ステータス', addr_col: '住所'}
+    rename_map = {id_col: '記録ID', type_col: '新規商品タイプ', stat_col: 'ステータス', addr_col: '住所'}
     rename_map = {k: v for k, v in rename_map.items() if k in grouped.columns}
     grouped = grouped.rename(columns=rename_map)
     
@@ -269,7 +197,7 @@ def classify_all_with_gemini(df):
 
     all_records = []
     for _, row in df.iterrows():
-        rec_text = f"【ID】{row['記録ID']}\n【ステータス】{row.get('ステータス', '')}\n【新規商品タイプ】{row.get('新規商品タイプ', '')}\n【住所】{row.get('住所', '')}\n【履歴】{str(row['対応履歴'])[:1000]}"
+        rec_text = f"【ID】{row['記録ID']}\n【住所】{row.get('住所', '')}"
         all_records.append({"id": str(row['記録ID']), "text": rec_text})
 
     BATCH_SIZE = 20
@@ -416,32 +344,58 @@ def main():
     df = load_and_clean_data(start_date, end_date)
     if df.empty: return
 
-    # 2. Gemini分類
+    # 2. Geminiによる都道府県特定 (一括)
     gemini_results = classify_all_with_gemini(df)
     
     results_list = []
+    # 除外ワードの定義
+    EXCLUSION_KEYWORDS = [
+        "重複",
+        "エリア外、施工・対応不可",
+        "クレーム",
+        "連絡禁止",
+        "修理対応依頼",
+        "その他（問い合わせ以外の物）"
+    ]
+
     for _, row in df.iterrows():
         rid = str(row['記録ID'])
         res = gemini_results.get(rid, {})
         
-        cat = res.get("category", "不明")
-        sub = res.get("sub_category", "その他")
-        g_pref = res.get("prefecture", "")
+        # (1) 商品タイプ判定 (Python)
+        new_type = str(row.get('新規商品タイプ', ''))
+        cat = "不明"
+        if "給湯器" in new_type:
+            cat = "給湯器"
+        elif "エコキュート" in new_type or "電気温水器" in new_type:
+            cat = "エコキュート"
         
+        # (2) ステータスによる除外判定 (Python)
+        status = str(row.get('ステータス', ''))
+        sub = "UU" # デフォルトはカウント対象
+        
+        # 除外キーワードが含まれているかチェック
+        for kw in EXCLUSION_KEYWORDS:
+            if kw in status:
+                sub = "対象外"
+                break
+        
+        # (3) 都道府県判定 (Gemini + 補助)
+        g_pref = res.get("prefecture", "")
         final_pref = g_pref if g_pref in PREFECTURES else (row['Python_Pref'] if row['Python_Pref'] in PREFECTURES else "不明")
         
-        results_list.append({
-            "id": rid,
-            "date": row['集計日'], 
-            "cat": cat, 
-            "sub": sub, 
-            "pref": final_pref,
-            # ログ用
-            "status": row.get('ステータス', ''),
-            "new_type": row.get('新規商品タイプ', ''),
-            "history": row.get('対応履歴', ''),
-            "address": row.get('住所', '')
-        })
+        # 集計対象のみリストに追加 (不明・対象外以外)
+        if cat != "不明" and sub != "対象外":
+            results_list.append({
+                "id": rid,
+                "date": row['集計日'], 
+                "cat": cat, 
+                "sub": "UU", # このスクリプトでは全てUUとして集計
+                "pref": final_pref,
+                "status": status,
+                "new_type": new_type,
+                "address": row.get('住所', '')
+            })
     
     df_res = pd.DataFrame(results_list)
 
