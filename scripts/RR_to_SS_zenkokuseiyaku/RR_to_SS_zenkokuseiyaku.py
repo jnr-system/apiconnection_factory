@@ -44,7 +44,7 @@ RR_API_URL = f"https://{RR_DOMAIN}/{RR_ACCOUNT}/api/csvexport/version/v1"
 # 4. 楽楽販売 DB設定 (成約管理)
 DB_SEIYAKU = {
     "dbSchemaId": "101185", # ★成約管理のSchemaID
-    "listId":     "101357", # ★利用する一覧のID
+    "listId":     "101454", # ★利用する一覧のID
     "searchIds":  ["107200", "107191"], # ★先月用と今月用の検索条件IDを2つ設定！
     "cols": {
         "id":       "手配番号",      
@@ -228,7 +228,7 @@ def update_spreadsheet_cells(df_target, target_dates):
         overall_cells = []
         
         # 月ごとに集計
-        df_target["month"] = df_target["成約日_dt"].dt.month
+        df_target["month"] = df_target["成約日"].dt.month
         monthly_counts = df_target.groupby(["month", "最終商品タイプ"]).size()
         
         for month in df_target["month"].unique():

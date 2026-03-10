@@ -535,18 +535,14 @@ def main():
         start_date = datetime.strptime(TARGET_DATE_START, "%Y/%m/%d").date()
         end_date   = datetime.strptime(TARGET_DATE_END,   "%Y/%m/%d").date()
     else:
-        # 自動モード：前日のみを集計対象とする
+        # 自動モード：過去3日間（3日前〜前日）を集計対象とする
         end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date
+        start_date = end_date - timedelta(days=2)
         
     days = (end_date - start_date).days + 1
 
     # --- 単日としてスプレッドシートに書き込む対象日 ---
-    if TARGET_DATE_START and TARGET_DATE_END:
-        target_dates = [start_date + timedelta(days=i) for i in range(days)]
-    else:
-        # 自動モードの場合は前日のみを更新対象とする
-        target_dates = [end_date]
+    target_dates = [start_date + timedelta(days=i) for i in range(days)]
 
     # 累計用データの取得開始日（集計開始日の当月1日）
     cum_start = start_date.replace(day=1)
@@ -593,13 +589,14 @@ def main():
         write_log(f"成約データ(単日): {len(df_cont_target)}件, 成約データ(累計): {len(df_cont_cum)}件")
 
     # ── Excelファイルへの出力 ─────────────────────────────────
-    try:
-        excel_path = Path(__file__).parent / EXCEL_FILE_NAME
-        df_export  = pd.concat([df_inq_current, df_cont_target], ignore_index=True)
-        df_export.to_excel(excel_path, index=False)
-        write_log(f"Excelファイルを出力しました: {EXCEL_FILE_NAME}")
-    except Exception as e:
-        write_log(f"Excel出力エラー: {e}")
+    # (出力不要とのことでコメントアウト)
+    # try:
+    #     excel_path = Path(__file__).parent / EXCEL_FILE_NAME
+    #     df_export  = pd.concat([df_inq_current, df_cont_target], ignore_index=True)
+    #     df_export.to_excel(excel_path, index=False)
+    #     write_log(f"Excelファイルを出力しました: {EXCEL_FILE_NAME}")
+    # except Exception as e:
+    #     write_log(f"Excel出力エラー: {e}")
 
     # ── スプレッドシート更新 ──────────────────────────────────
     update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates)
