@@ -41,9 +41,7 @@ DB_CONFIGS = [
         "name": "正直屋",
         "details_id": "101185",
         "targets": [
-            {"label": "先月分", "view_id": "106513", "list_id": "101360"},
-            {"label": "今月分", "view_id": "107271", "list_id": "101360"},
-            {"label": "来月分", "view_id": "106529", "list_id": "101360"}
+            {"label": "今年分（統合）", "view_id": "106513", "list_id": "101360"}
         ],
         "keywords": {
             "id": "手配番号", "billing": "請求金額", "date": "施工日",
@@ -52,10 +50,8 @@ DB_CONFIGS = [
             "status": "進捗",
             "request_type": "依頼内容"
         },
-        "contract_targets": [#成約件数と成約請求金額のカウント用
-            {"label": "成約_先月", "view_id": "107257", "list_id": "101360"},
-            {"label": "成約_今月", "view_id": "107261", "list_id": "101360"},
-            {"label": "成約_来月", "view_id": "107265", "list_id": "101360"}
+        "contract_targets": [
+            {"label": "成約_今年分（統合）", "view_id": "107257", "list_id": "101360"}
         ],
         "total_settings": {
             "enabled": True,
@@ -119,9 +115,7 @@ DB_CONFIGS = [
         "name": "楽天(L-stage)",
         "details_id": "101357",
         "targets": [
-            {"label": "先月分", "view_id": "106541", "list_id": "101365"},
-            {"label": "今月分", "view_id": "106545", "list_id": "101365"},
-            {"label": "来月分", "view_id": "106549", "list_id": "101365"}
+            {"label": "今年分（統合）", "view_id": "106541", "list_id": "101365"}
         ],
         "keywords": {
             "id": "提案発注番号", "billing": "売上", "date": "メーカー出荷日",
@@ -129,7 +123,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK104", "cost": "AK105", "const": "AK106"},
+            "cells": {"billing": "AK164", "cost": "AK165", "const": "AK166"},
             "future_cells": {}
         },
         "category_settings": []
@@ -139,9 +133,7 @@ DB_CONFIGS = [
         "name": "日本設備(JERCY)",
         "details_id": "101378",
         "targets": [
-            {"label": "先月分", "view_id": "106553", "list_id": "101366"},
-            {"label": "今月分", "view_id": "106556", "list_id": "101366"},
-            {"label": "来月分", "view_id": "106559", "list_id": "101366"}
+            {"label": "今年分（統合）", "view_id": "106553", "list_id": "101366"}
         ],
         "keywords": {
             "id": "提案発注番号", "billing": "売上", "date": "メーカー出荷日",
@@ -149,7 +141,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK108", "cost": "AK109", "const": "AK110"},
+            "cells": {"billing": "AK168", "cost": "AK169", "const": "AK170"},
             "future_cells": {}
         },
         "category_settings": []
@@ -210,8 +202,8 @@ def main():
     today = datetime.now()
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    range_start = (today - timedelta(days=12)).replace(hour=0, minute=0, second=0, microsecond=0)
-    range_end   = (today + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    range_start = (today - timedelta(days=71)).replace(hour=0, minute=0, second=0, microsecond=0)
+    range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
 
