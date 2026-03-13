@@ -10,6 +10,7 @@
 |---|---|
 | [RR_to_RMS_customerdata](./scripts/RR_to_RMS_customerdata/) | 楽楽販売の待機注文に対し楽天RMSから顧客情報を取得→楽楽販売へ自動転記 |
 | [RR_to_SS_UUcounter](./scripts/RR_to_SS_UUcounter/) | 楽楽販売の問い合わせをGemini AIで自動分類 → スプレッドシートへUU数を集計 |
+| [RR_to_SS_edion](./scripts/RR_to_SS_edion/) | 楽楽販売からエディオン等の問い合わせデータを取得し、スプレッドシートへ書き込み |
 | [RR_to_SS_seiyakuprocess](./scripts/RR_to_SS_seiyakuprocess/) | 楽楽販売の問い合わせから緊急度・商品タイプ別のKPI（UU/成約/終了）を集計 |
 | [RR_to_SS_uriage-arari](./scripts/RR_to_SS_uriage-arari/) | 楽楽販売の売上・粗利データをDBごと・商品別に集計 → スプレッドシートへ書き込み |
 | [RR_to_SS_zaiko](./scripts/RR_to_SS_zaiko/) | 楽楽販売の在庫データをスプレッドシートへ全件洗い替え |
