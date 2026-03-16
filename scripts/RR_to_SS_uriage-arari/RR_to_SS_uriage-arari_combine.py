@@ -223,6 +223,8 @@ def main():
         daily_store = {}
         contract_store = {}  # 成約日ベースの集計
         extra_contract_store = {} # 正直屋専用：当月完了/次月繰越/再工事 などを成約日キーで集計
+        processed_daily_ids = set() # 施工日ベースの重複カウント防止用
+        processed_contract_ids = set() # 重複カウント防止のため、処理済みの成約IDを保持
         keywords = db_config["keywords"]
 
         # データ取得
@@ -285,6 +287,14 @@ def main():
                 for row in rows[1:]:
                     if len(row) <= max_idx: continue
 
+                    # IDを取得して重複チェック
+                    val_id = ""
+                    if idx_id != -1:
+                        val_id = row[idx_id].strip().replace('"', '').replace("'", "")
+                    
+                    if not val_id or val_id in processed_daily_ids:
+                        continue
+
                     val_bill  = to_int(row[idx_bill])  if idx_bill  != -1 else 0
                     val_cost  = to_int(row[idx_cost])  if idx_cost  != -1 else 0
                     val_const = to_int(row[idx_const]) if idx_const != -1 else 0
@@ -324,6 +334,7 @@ def main():
                             daily_store[fmt_date][matched_label]["const"]   += val_const
                             if val_bill > 0: daily_store[fmt_date][matched_label]["count"] += 1
 
+                    processed_daily_ids.add(val_id)
                     count_rows += 1
 
                 write_log(f"  集計対象: {count_rows} 件")
@@ -399,11 +410,16 @@ def main():
                             for row in rows_c[1:]:
                                 if len(row) <= c_max_idx: continue
 
-                                # 1. 手配番号チェック (JNR-を含む)
+                                # 1. ID取得と重複チェック
+                                val_id = ""
                                 if c_idx_id != -1:
                                     val_id = row[c_idx_id].strip().replace('"', '').replace("'", "")
-                                    if "JNR-" not in val_id:
-                                        continue
+                                
+                                if not val_id or val_id in processed_contract_ids:
+                                    continue
+
+                                if "JNR-" not in val_id:
+                                    continue
 
                                 # 2. 進捗チェック (重複以外)
                                 val_status = row[c_idx_status].strip().replace('"', '').replace("'", "") if c_idx_status != -1 else ""
@@ -574,6 +590,8 @@ def main():
                                             elif is_pending_c:
                                                 extra_contract_store[fmt_cdate][matched_cat]["pending_count"] += 1
                                                 contract_store[fmt_cdate][matched_cat]["count"] += 1
+                                
+                                processed_contract_ids.add(val_id)
                             write_log(f"  成約日集計対象({c_label}): {count_rows_c} 件")
                 except Exception as parse_err:
                     write_log(f"  CSV解析エラー: {parse_err}")
