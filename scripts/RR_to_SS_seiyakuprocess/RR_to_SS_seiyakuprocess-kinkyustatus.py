@@ -271,7 +271,7 @@ def get_kpi_counts(df):
         "終了数": lost_count
     }
 
-def update_spreadsheet_cells(df_current, target_dates):
+def update_spreadsheet_cells(df_current, target_dates, end_date):
     """スプレッドシートを更新する"""
     write_log(f"スプレッドシートを更新中...")
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -308,22 +308,31 @@ def update_spreadsheet_cells(df_current, target_dates):
         if not sheet_cache[sheet_name]:
             continue
 
-        # ── 日付フィルタリング ──────────────────────────────
-        # 累計の集計期間（過去90日）
-        start_window = d - timedelta(days=1)
-
         # ★修正：過去のスナップショットがあればそれを使う
         df_use = load_snapshot_for_date(d)
+        is_fallback = False
         if df_use is None:
             # 過去ファイルがない場合は、引数で渡された最新データ(df_current)を使用
             df_use = df_current
+            is_fallback = True
         else:
             write_log(f"  [{d}] 過去のスナップショットを使用して集計します")
+
+        # ★★★ 安全装置 ★★★
+        # 最新データで代用する場合(is_fallback=True)、そのデータは「end_date」時点のデータしか持っていない。
+        # 集計対象日(d)が end_date と違う場合、誤って過去のデータを「0」で上書きしてしまうのを防ぐため、この日の処理をスキップする。
+        if is_fallback and d != end_date:
+            write_log(f"  [{d}] スナップショットがなく、最新データでの代用もできないためスキップします。")
+            continue
+
+        # ── 日付フィルタリング ──────────────────────────────
+        # 累計の集計期間（月初から当日まで）
+        start_window = d.replace(day=1)
 
         # 単日データ（その日のデータ）
         subset_day = df_use[df_use["日付_単体"] == d] if not df_use.empty else pd.DataFrame()
         
-        # 累計データ（その日以前、かつ90日以内）
+        # 累計データ（月初から当日まで）
         subset_cum = df_use[(df_use["日付_単体"] <= d) & (df_use["日付_単体"] >= start_window)] if not df_use.empty else pd.DataFrame()
 
         for prod_name, start_col, prod_keyword in product_categories:
@@ -353,16 +362,19 @@ def update_spreadsheet_cells(df_current, target_dates):
                 # 単日書き込み
                 for kpi_name, row_idx in config["rows_day"].items():
                     val = counts_day.get(kpi_name, 0)
-                    cells_to_update_by_sheet[sheet_name].append(
-                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
-                    )
+                    # 値が0の場合はセルを更新しない（既存の値を消さない）
+                    if val > 0:
+                        cells_to_update_by_sheet[sheet_name].append(
+                            gspread.Cell(row=row_idx, col=target_col, value=val)
+                        )
 
                 # 累計書き込み
                 for kpi_name, row_idx in config["rows_cum"].items():
                     val = counts_cum.get(kpi_name, 0)
-                    cells_to_update_by_sheet[sheet_name].append(
-                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
-                    )
+                    if val > 0:
+                        cells_to_update_by_sheet[sheet_name].append(
+                            gspread.Cell(row=row_idx, col=target_col, value=val)
+                        )
 
     for sheet_name_key, cells in cells_to_update_by_sheet.items():
         if cells:
@@ -384,7 +396,7 @@ def main():
         # 自動モード：昨日を最終日として、過去30日分を対象にする
         # スナップショットがある日は正確な履歴データで、ない日は現在データで補完される
         end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date - timedelta(days=0)  # 30日分（昨日を含む）
+        start_date = end_date - timedelta(days=29)  # 30日分（昨日を含む）
 
     days = (end_date - start_date).days + 1
     target_dates = [start_date + timedelta(days=i) for i in range(days)]
@@ -422,7 +434,7 @@ def main():
         write_log("データが取得できませんでした。")
 
     # ── 3. スプレッドシート更新 ──────────────────────────────
-    update_spreadsheet_cells(df_current, target_dates)
+    update_spreadsheet_cells(df_current, target_dates, end_date)
 
     write_log("全処理完了。")
 
