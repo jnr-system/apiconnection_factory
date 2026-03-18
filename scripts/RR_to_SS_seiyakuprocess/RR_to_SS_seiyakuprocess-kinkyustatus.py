@@ -22,8 +22,8 @@ except ImportError:
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = ""
-TARGET_DATE_END   = ""
+TARGET_DATE_START = "2026/02/01"
+TARGET_DATE_END   = "2026/03/17"
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "19l5TYkXN1SdwrWNVkgKHLymx4_chqSunOrY-2rAqW14" # ★スプレッドシートID
@@ -54,26 +54,26 @@ DB_INQUIRY = {
 LIMIT_PER_REQUEST = 10000
 
 # 5. スプレッドシートの書き込み位置設定
-COL_START_ALL     = 6   # ★全体の開始列 (F列=6)
-COL_START_KYUTOKI = 42  # ★給湯器の開始列 (AP列=42)
-COL_START_ECO     = 78  # ★エコキュートの開始列 (BZ列=78)
+COL_START_ALL     = 4   # ★全体の開始列 (F列=6)
+COL_START_KYUTOKI = 38  # ★給湯器の開始列 (AP列=42)
+COL_START_ECO     = 72  # ★エコキュートの開始列 (BZ列=78)
 
 # ★緊急度ごとの設定（検索キーワードと書き込み行番号）
 URGENCY_CONFIG = [
     {
         "name": "急ぎ", "keyword": "急ぎ",
         "rows_cum": {"UU数": 6,  "成約数": 7,  "終了数": 8},  # 累積 (行6-8)
-        "rows_day": {"UU数": 32, "成約数": 33, "終了数": 34}  # 単日 (行32-34)
+        "rows_day": {"UU数": 18, "成約数": 19, "終了数": 20}  # 単日 (行32-34)
     },
     {
         "name": "故障", "keyword": "故障",
         "rows_cum": {"UU数": 9,  "成約数": 10, "終了数": 11}, # 累積 (行9-11)
-        "rows_day": {"UU数": 35, "成約数": 36, "終了数": 37}  # 単日 (行35-37)
+        "rows_day": {"UU数": 21, "成約数": 22, "終了数": 23}  # 単日 (行35-37)
     },
     {
         "name": "不具合・検討", "keyword": "不具合・検討",
         "rows_cum": {"UU数": 12, "成約数": 13, "終了数": 14}, # 累積 (行12-14)
-        "rows_day": {"UU数": 38, "成約数": 39, "終了数": 40}  # 単日 (行38-40)
+        "rows_day": {"UU数": 24, "成約数": 25, "終了数": 26}  # 単日 (行38-40)
     }
 ]
 
@@ -169,7 +169,7 @@ def raw_to_df(df_raw):
 def get_kpi_counts(df):
     """
     データフレームからKPI（UU数、成約数、終了数）を集計する
-    UU数: 1 ■一次受付（ヒアリング）
+    UU数: その日の問い合わせ総件数（緊急度・商品タイプでフィルタ済みの全件）
     成約数: 1-50 ■成約
     終了数: 失注という文字が入ったステータス
     """
@@ -178,7 +178,7 @@ def get_kpi_counts(df):
 
     statuses = df["最終ステータス"]
 
-    uu_count       = int((statuses == "1 ■一次受付（ヒアリング）").sum())
+    uu_count       = len(df)
     contract_count = int((statuses == "1-50 ■成約").sum())
     lost_count     = int(statuses.str.contains("失注", na=False).sum())
 
@@ -206,7 +206,9 @@ def update_spreadsheet_cells(df, target_dates):
     sheet_cache = {}
 
     # 商品タイプごとの設定 (名称, 開始列, 検索キーワード)
+    # キーワードが空文字の場合は商品タイプでフィルタしない（全体集計）
     product_categories = [
+        ("全体",       COL_START_ALL,     ""),
         ("給湯器",     COL_START_KYUTOKI, "給湯器"),
         ("エコキュート", COL_START_ECO,     "エコ")
     ]
@@ -238,9 +240,13 @@ def update_spreadsheet_cells(df, target_dates):
         for prod_name, start_col, prod_keyword in product_categories:
             target_col = start_col + (d.day - 1)
 
-            # 商品タイプでフィルタ
-            subset_day_prod = subset_day[subset_day["商品タイプ"].str.contains(prod_keyword, na=False)] if not subset_day.empty else pd.DataFrame()
-            subset_cum_prod = subset_cum[subset_cum["商品タイプ"].str.contains(prod_keyword, na=False)] if not subset_cum.empty else pd.DataFrame()
+            # 商品タイプでフィルタ（キーワード空の場合は全件対象）
+            if prod_keyword:
+                subset_day_prod = subset_day[subset_day["商品タイプ"].str.contains(prod_keyword, na=False)] if not subset_day.empty else pd.DataFrame()
+                subset_cum_prod = subset_cum[subset_cum["商品タイプ"].str.contains(prod_keyword, na=False)] if not subset_cum.empty else pd.DataFrame()
+            else:
+                subset_day_prod = subset_day
+                subset_cum_prod = subset_cum
 
             for config in URGENCY_CONFIG:
                 keyword = config["keyword"]
@@ -260,18 +266,16 @@ def update_spreadsheet_cells(df, target_dates):
                 # 単日書き込み
                 for kpi_name, row_idx in config["rows_day"].items():
                     val = counts_day.get(kpi_name, 0)
-                    if val > 0:
-                        cells_to_update_by_sheet[sheet_name].append(
-                            gspread.Cell(row=row_idx, col=target_col, value=val)
-                        )
+                    cells_to_update_by_sheet[sheet_name].append(
+                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
+                    )
 
                 # 累計書き込み
                 for kpi_name, row_idx in config["rows_cum"].items():
                     val = counts_cum.get(kpi_name, 0)
-                    if val > 0:
-                        cells_to_update_by_sheet[sheet_name].append(
-                            gspread.Cell(row=row_idx, col=target_col, value=val)
-                        )
+                    cells_to_update_by_sheet[sheet_name].append(
+                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
+                    )
 
     for sheet_name_key, cells in cells_to_update_by_sheet.items():
         if cells:
@@ -291,7 +295,7 @@ def main():
         end_date   = datetime.strptime(TARGET_DATE_END,   "%Y/%m/%d").date()
     else:
         end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date.replace(day=1)  # 当月1日から昨日まで
+        start_date = end_date  # 日付未指定時は前日のみ
 
     days = (end_date - start_date).days + 1
     target_dates = [start_date + timedelta(days=i) for i in range(days)]
