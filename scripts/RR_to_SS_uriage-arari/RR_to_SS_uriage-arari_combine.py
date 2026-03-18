@@ -25,7 +25,7 @@ RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
 RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
 # 2. Googleスプレッドシートの設定
-SPREADSHEET_KEY = "1GcdqrgNXwKNCz-ZED0AvGWUKCPqEooLOat-pjRuGCOI"
+SPREADSHEET_KEY = "1MeMNN29TGNkhpVw6JeSbvGjrSsbx7FYNBU0oo1dkfSE"
 LOG_FILE_NAME = "execution_csv_log.txt"
 
 # ★書式設定の定義
