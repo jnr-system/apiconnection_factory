@@ -7,6 +7,6 @@ Type=oneshot
 User=root
 WorkingDirectory=/root/project/apiconnection_factory/scripts/RR_to_SS_uriage-arari
 EnvironmentFile=/etc/apiconnection.env
-ExecStart=/root/project/apiconnection_factory/venv/bin/python RR_to_SS_uriage-arari.py
+ExecStart=/root/project/apiconnection_factory/venv/bin/python RR_to_SS_uriage-arari_combine.py
 StandardOutput=journal
 StandardError=journal
