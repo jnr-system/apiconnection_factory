@@ -57,6 +57,7 @@ DB_CONFIGS = [
             "enabled": True,
             "cells": {"billing": "", "cost": "", "const": "", "count": "AK27"},
             "future_cells": {"billing": "AK22", "cost": "", "const": "", "count": "AK21"},
+            "extra_future_cells": {"billing": "AK29", "cost": "AK30", "const": "AK31"},
             "contract_cells": {
                 "billing": "AK13", "count": "AK12",
                 "cancel_count": "AK14",
@@ -71,7 +72,8 @@ DB_CONFIGS = [
         "category_settings": [
             {"label": "給湯器", "keyword": "給湯器",
              "cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": "AK74"},
-             "future_cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": "AK74"},
+             "future_cells": {"billing": "AK69", "cost": "", "const": "", "count": "AK68"},
+             "extra_count_cell": "AK58",
              "contract_cells": {
                  "billing": "AK60", "count": "AK59",
                  "cancel_count": "AK61",
@@ -84,7 +86,8 @@ DB_CONFIGS = [
              }},
             {"label": "エコキュート", "keyword": "エコキュート",
              "cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK102"},
-             "future_cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK102"},
+             "future_cells": {"billing": "AK97", "cost": "", "const": "", "count": "AK96"},
+             "extra_count_cell": "AK86",
              "contract_cells": {
                  "billing": "AK88", "count": "AK87",
                  "cancel_count": "AK89",
@@ -97,7 +100,8 @@ DB_CONFIGS = [
              }},
             {"label": "コンロ", "keyword": "コンロ",
              "cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK130"},
-             "future_cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK130"},
+             "future_cells": {"billing": "AK125", "cost": "", "const": "", "count": "AK124"},
+             "extra_count_cell": "AK114",
              "contract_cells": {
                  "billing": "AK116", "count": "AK115",
                  "cancel_count": "AK117",
@@ -202,7 +206,7 @@ def main():
     today = datetime.now()
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    range_start = (today - timedelta(days=16)).replace(hour=0, minute=0, second=0, microsecond=0)
+    range_start = (today - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
@@ -705,6 +709,16 @@ def main():
                 smart_update(past_cells.get("cost"),    future_cells.get("cost"),    p_cost, f_cost, is_count=False)
                 smart_update(past_cells.get("const"),   future_cells.get("const"),   p_const, f_const, is_count=False)
                 smart_update(past_cells.get("count"),   future_cells.get("count"),   p_count, f_count, is_count=True)
+
+                extra_count_cell = settings_dict.get("extra_count_cell")
+                if extra_count_cell:
+                    smart_update(extra_count_cell, None, p_count, f_count, is_count=True)
+
+                extra_future = settings_dict.get("extra_future_cells", {})
+                if extra_future:
+                    smart_update(extra_future.get("billing"), None, p_bill, f_bill, is_count=False)
+                    smart_update(extra_future.get("cost"),    None, p_cost, f_cost, is_count=False)
+                    smart_update(extra_future.get("const"),   None, p_const, f_const, is_count=False)
 
             if db_config["total_settings"]["enabled"]:
                 write_separate_data("total", db_config["total_settings"])

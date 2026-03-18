@@ -1,4 +1,3 @@
-import calendar
 import pandas as pd
 import requests
 import io
@@ -23,11 +22,8 @@ except ImportError:
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = "" 
+TARGET_DATE_START = ""
 TARGET_DATE_END   = ""
-
-# 1-2. スナップショット保存先（スクリプトと同じフォルダ内の snapshots/ フォルダ）
-SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "19l5TYkXN1SdwrWNVkgKHLymx4_chqSunOrY-2rAqW14" # ★スプレッドシートID
@@ -121,7 +117,7 @@ def fetch_rakuraku_csv(settings):
             df = pd.read_csv(io.StringIO(content), dtype=str)
             # 列名の前後の空白を削除
             df.columns = df.columns.str.replace('　', ' ').str.strip()
-            
+
             write_log(f"  → {len(df)}件取得")
             if len(all_dfs) == 0:
                 write_log(f"  [DEBUG] 取得したCSVの列名一覧: {list(df.columns)}")
@@ -139,20 +135,10 @@ def fetch_rakuraku_csv(settings):
     write_log(f"合計（重複除去後）: {len(combined_df)}件")
     return combined_df
 
-# ==============================================================================
-# ■ スナップショット関連
-# ==============================================================================
-
-def save_snapshot(df_raw, snapshot_date):
-    """
-    問い合わせ管理DBの全件スナップショットをJSONに保存する。
-    ファイル名: snapshots/YYYY-MM-DD.json
-    内容: {記録ID: {status, urgency, product_type, date}}
-    """
-    SNAPSHOT_DIR.mkdir(exist_ok=True)
-
+def raw_to_df(df_raw):
+    """取得した生データをDataFrameに変換する"""
     cols = DB_INQUIRY["cols"]
-    data = {}
+    records = []
 
     for _, row in df_raw.iterrows():
         record_id = str(row.get(cols["id"], "")).strip()
@@ -162,34 +148,8 @@ def save_snapshot(df_raw, snapshot_date):
         status       = str(row.get(cols["status"], "")).strip()
         urgency      = str(row.get(cols["urgency"], "")).strip()
         product_type = str(row.get(cols["product_type"], "")).strip()
-        # 日付形式を YYYY-MM-DD に統一
         date_str     = str(row.get(cols["date"], ""))[:10].replace("/", "-")
 
-        data[record_id] = {
-            "status":       status,
-            "urgency":      urgency if urgency != "nan" else "",
-            "product_type": product_type if product_type != "nan" else "",
-            "date":         date_str,
-        }
-
-    file_path = SNAPSHOT_DIR / f"{snapshot_date}.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    write_log(f"スナップショット保存: {file_path.name} ({len(data)}件)")
-    return data
-
-def snapshot_to_df(snapshot_data, cum_start=None):
-    """
-    スナップショットデータをDataFrameに変換する。
-    cum_start を指定すると「新規問い合わせ日 >= cum_start」の案件のみを残す。
-    """
-    if not snapshot_data:
-        return pd.DataFrame()
-
-    records = []
-    for _, info in snapshot_data.items():
-        date_str = info.get("date", "")
         date_obj = None
         try:
             if date_str and len(date_str) >= 10:
@@ -197,57 +157,14 @@ def snapshot_to_df(snapshot_data, cum_start=None):
         except ValueError:
             pass
 
-        # 累計フィルタ
-        if cum_start is not None:
-            if date_obj is None or date_obj < cum_start:
-                continue
-
         records.append({
-            "最終ステータス": info.get("status", ""),
-            "緊急度判定":     info.get("urgency", ""),
-            "商品タイプ":     info.get("product_type", ""),
+            "最終ステータス": status,
+            "緊急度判定":     urgency if urgency != "nan" else "",
+            "商品タイプ":     product_type if product_type != "nan" else "",
             "日付_単体":      date_obj,
         })
 
     return pd.DataFrame(records) if records else pd.DataFrame()
-
-def load_snapshot_for_date(target_date):
-    """指定日のスナップショットJSONがあれば読み込んでDataFrameにする"""
-    file_path = SNAPSHOT_DIR / f"{target_date}.json"
-    if file_path.exists():
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return snapshot_to_df(data)
-        except Exception as e:
-            write_log(f"スナップショット読み込み失敗 ({target_date}): {e}")
-    return None
-
-def cleanup_old_snapshots(base_date):
-    """3ヶ月より古いスナップショットファイルを自動削除する"""
-    if not SNAPSHOT_DIR.exists():
-        return
-
-    cutoff_month = base_date.month - 3
-    cutoff_year  = base_date.year
-    if cutoff_month <= 0:
-        cutoff_month += 12
-        cutoff_year  -= 1
-    max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-    cutoff  = datetime(cutoff_year, cutoff_month, min(base_date.day, max_day)).date()
-
-    deleted = 0
-    for f in SNAPSHOT_DIR.glob("*.json"):
-        try:
-            file_date = datetime.strptime(f.stem, "%Y-%m-%d").date()
-            if file_date < cutoff:
-                f.unlink()
-                deleted += 1
-        except ValueError:
-            pass
-
-    if deleted > 0:
-        write_log(f"古いスナップショット削除: {deleted}件 ({cutoff}より前)")
 
 def get_kpi_counts(df):
     """
@@ -258,20 +175,20 @@ def get_kpi_counts(df):
     """
     if df.empty:
         return {"UU数": 0, "成約数": 0, "終了数": 0}
-    
+
     statuses = df["最終ステータス"]
-    
-    uu_count = int((statuses == "1 ■一次受付（ヒアリング）").sum())
+
+    uu_count       = int((statuses == "1 ■一次受付（ヒアリング）").sum())
     contract_count = int((statuses == "1-50 ■成約").sum())
-    lost_count = int(statuses.str.contains("失注", na=False).sum())
-    
+    lost_count     = int(statuses.str.contains("失注", na=False).sum())
+
     return {
         "UU数": uu_count,
         "成約数": contract_count,
         "終了数": lost_count
     }
 
-def update_spreadsheet_cells(df_current, target_dates, end_date):
+def update_spreadsheet_cells(df, target_dates):
     """スプレッドシートを更新する"""
     write_log(f"スプレッドシートを更新中...")
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -308,32 +225,15 @@ def update_spreadsheet_cells(df_current, target_dates, end_date):
         if not sheet_cache[sheet_name]:
             continue
 
-        # ★修正：過去のスナップショットがあればそれを使う
-        df_use = load_snapshot_for_date(d)
-        is_fallback = False
-        if df_use is None:
-            # 過去ファイルがない場合は、引数で渡された最新データ(df_current)を使用
-            df_use = df_current
-            is_fallback = True
-        else:
-            write_log(f"  [{d}] 過去のスナップショットを使用して集計します")
-
-        # ★★★ 安全装置 ★★★
-        # 最新データで代用する場合(is_fallback=True)、そのデータは「end_date」時点のデータしか持っていない。
-        # 集計対象日(d)が end_date と違う場合、誤って過去のデータを「0」で上書きしてしまうのを防ぐため、この日の処理をスキップする。
-        if is_fallback and d != end_date:
-            write_log(f"  [{d}] スナップショットがなく、最新データでの代用もできないためスキップします。")
-            continue
-
         # ── 日付フィルタリング ──────────────────────────────
         # 累計の集計期間（月初から当日まで）
         start_window = d.replace(day=1)
 
         # 単日データ（その日のデータ）
-        subset_day = df_use[df_use["日付_単体"] == d] if not df_use.empty else pd.DataFrame()
-        
+        subset_day = df[df["日付_単体"] == d] if not df.empty else pd.DataFrame()
+
         # 累計データ（月初から当日まで）
-        subset_cum = df_use[(df_use["日付_単体"] <= d) & (df_use["日付_単体"] >= start_window)] if not df_use.empty else pd.DataFrame()
+        subset_cum = df[(df["日付_単体"] >= start_window) & (df["日付_単体"] <= d)] if not df.empty else pd.DataFrame()
 
         for prod_name, start_col, prod_keyword in product_categories:
             target_col = start_col + (d.day - 1)
@@ -348,21 +248,18 @@ def update_spreadsheet_cells(df_current, target_dates, end_date):
                 # --- 単日カウント ---
                 counts_day = {"UU数": 0, "成約数": 0, "終了数": 0}
                 if not subset_day_prod.empty:
-                    # 緊急度でフィルタ
                     subset_cat = subset_day_prod[subset_day_prod["緊急度判定"].str.contains(keyword, na=False)]
                     counts_day = get_kpi_counts(subset_cat)
 
                 # --- 累計カウント ---
                 counts_cum = {"UU数": 0, "成約数": 0, "終了数": 0}
                 if not subset_cum_prod.empty:
-                    # 緊急度でフィルタ
                     subset_cat_cum = subset_cum_prod[subset_cum_prod["緊急度判定"].str.contains(keyword, na=False)]
                     counts_cum = get_kpi_counts(subset_cat_cum)
 
                 # 単日書き込み
                 for kpi_name, row_idx in config["rows_day"].items():
                     val = counts_day.get(kpi_name, 0)
-                    # 値が0の場合はセルを更新しない（既存の値を消さない）
                     if val > 0:
                         cells_to_update_by_sheet[sheet_name].append(
                             gspread.Cell(row=row_idx, col=target_col, value=val)
@@ -393,48 +290,27 @@ def main():
         start_date = datetime.strptime(TARGET_DATE_START, "%Y/%m/%d").date()
         end_date   = datetime.strptime(TARGET_DATE_END,   "%Y/%m/%d").date()
     else:
-        # 自動モード：昨日を最終日として、過去30日分を対象にする
-        # スナップショットがある日は正確な履歴データで、ない日は現在データで補完される
         end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date - timedelta(days=29)  # 30日分（昨日を含む）
+        start_date = end_date.replace(day=1)  # 当月1日から昨日まで
 
     days = (end_date - start_date).days + 1
     target_dates = [start_date + timedelta(days=i) for i in range(days)]
 
-    # 累計用データの取得開始日（集計開始日の3ヶ月前）
-    cum_month = start_date.month - 3
-    cum_year  = start_date.year
-    if cum_month <= 0:
-        cum_month += 12
-        cum_year  -= 1
-    max_day   = calendar.monthrange(cum_year, cum_month)[1]
-    cum_start = datetime(cum_year, cum_month, min(start_date.day, max_day)).date()
-
     write_log(f"集計対象期間: {start_date} 〜 {end_date} ({days}日間)")
-    write_log(f"データ取得範囲: {cum_start} 以降 (累計計算用)")
-
-    # ── 古いスナップショットを削除（3ヶ月より前） ────────────────
-    cleanup_old_snapshots(end_date)
 
     # ── 1. 問い合わせ管理DBからの取得 ────────────────────────
     write_log(">>> 問い合わせ管理DBの取得を開始します")
     df_raw = fetch_rakuraku_csv(DB_INQUIRY)
 
-    df_current = pd.DataFrame()
+    if df_raw.empty:
+        write_log("データが取得できませんでした。処理を終了します。")
+        return
 
-    if not df_raw.empty:
-        # 指定期間の最終日（通常は昨日/今日）の名前でスナップショット保存
-        snapshot_data = save_snapshot(df_raw, end_date)
+    df = raw_to_df(df_raw)
+    write_log(f"変換後: {len(df)}件")
 
-        # 最新データとして保持（スナップショットがない日のフォールバック用）
-        df_current = snapshot_to_df(snapshot_data)
-
-        write_log(f"スナップショット全件: {len(df_current)}件")
-    else:
-        write_log("データが取得できませんでした。")
-
-    # ── 3. スプレッドシート更新 ──────────────────────────────
-    update_spreadsheet_cells(df_current, target_dates, end_date)
+    # ── 2. スプレッドシート更新 ──────────────────────────────
+    update_spreadsheet_cells(df, target_dates)
 
     write_log("全処理完了。")
 
