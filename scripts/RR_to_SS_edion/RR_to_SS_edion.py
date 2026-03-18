@@ -1,7 +1,11 @@
 """
 【実行内容】
 楽楽販売APIから問い合わせデータ（エディオン等）をCSV形式で取得し、
-Googleスプレッドシートに全データを上書き（洗い替え）します。
+Googleスプレッドシートの「元データ管理シート」に反映（マージ）します。
+
+レコードIDをキーとして、
+- 既存レコード：手動管理列を維持しつつ更新
+- 新規レコード：行を追加して初期値をセット
 """
 import requests
 import csv
@@ -34,10 +38,22 @@ RAKURAKU_LIST_ID   = "101473"
 
 # ■ Googleスプレッドシートの設定
 SPREADSHEET_KEY = "1hBE66-67Se9c4FHXoILr7s5L-HDj5qjaqp4A6Z44kQ8"
-SHEET_NAME = "テスト" # FIXME: 実際のシート名に合わせて変更してください
+SHEET_NAME = "元データ管理シート（マスタDB）"
 
 # ■ ログファイルの保存先
 LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
+
+# ■ 手動管理対象（Pythonで上書きしない）列のリスト
+MANUAL_COLUMNS = [
+    "新規フラグ",
+    "先方確認フラグ",
+    "ステータス",
+    "見積作成日",
+    "先方確認日",
+    "備考",
+    "見積金額",
+    "見積書URL" # 要件5と既存更新ルールの矛盾を考慮し、手動/GAS管理列として保護を優先します
+]
 
 # ==============================================================================
 # 共通関数: ログ出力
@@ -101,18 +117,90 @@ def main():
         write_log(f"取得成功: {len(raw_data)} 行のデータを取得しました。")
 
         # -------------------------------------------------------------
-        # 全データお掃除処理
+        # 指定列の抽出と全データお掃除処理
         # -------------------------------------------------------------
+        header = raw_data[0]
+        # 取得したCSVヘッダー内の列名のインデックスをマッピング（BOMや改行などを除去）
+        header_map = {}
+        for idx, col_name in enumerate(header):
+            clean_col_name = col_name.strip('\ufeff').strip().replace('\n', '').replace('\r', '')
+            header_map[clean_col_name] = idx
+        
+        # スプレッドシートに書き込むヘッダーのリスト (A,B列は触らないためC列から開始)
+        spreadsheet_headers = [
+            "ステータス",  # C列
+            "レコードID", "エディオン連携用手配番号", "問い合わせ日", "顧客名", "顧客名カナ",
+            "顧客電話番号", "顧客メールアドレス", "顧客住所", "", "ガス種",
+            "先方店舗名", "先方担当者名", "先方メールアドレス", "工事第１希望日",
+            "工事第２希望日", "工事第３希望日", "スグフォームURL"
+        ]
+
+        # スプレッドシートのヘッダー名と、対応するCSVの列名のマッピング
+        csv_to_ss_map = {
+            "レコードID": "記録ID",
+            "エディオン連携用手配番号": "エディオン連携用手配番号",
+            "問い合わせ日": "新規問い合わせ日",
+            "顧客名": "名前",
+            "顧客名カナ": "フリカナ",
+            "顧客電話番号": "電話番号_1",
+            "顧客メールアドレス": "メールアドレス_1",
+            "ガス種": "ガスの種類",
+            "先方店舗名": "エディオン店舗名",
+            "先方担当者名": "エディオン担当者名",
+            "先方メールアドレス": "エディオンメールアドレス",
+            "工事第１希望日": "第１希望日（エディオン）",
+            "工事第２希望日": "第２希望日（エディオン）",
+            "工事第３希望日": "第３希望日（エディオン）",
+            "スグフォームURL": "スグフォームURL（エディオン）",
+        }
+
+        # 住所を構成するCSV列のリスト
+        address_csv_columns = ["エディオン案件用：郵便番号", "都道府県名", "市区名", "町村名・番地", "マンション・ビル名"]
+
+        # -------------------------------------------------------------
+        # デバッグ: 見つからなかった列をログに出力
+        # -------------------------------------------------------------
+        all_required_csv_cols = list(csv_to_ss_map.values()) + address_csv_columns
+        missing_columns = [col for col in all_required_csv_cols if col not in header_map]
+        if missing_columns:
+            write_log(f"⚠️ 警告: 以下の必須項目がCSV内に見つからなかったため、データが欠落する可能性があります:\n{missing_columns}")
+            write_log(f"ℹ️ 参考: 実際のCSVに含まれている列名一覧:\n{list(header_map.keys())}")
+
         data_list = []
-        for row in raw_data:
+
+        # 2行目以降のデータ行を処理
+        for row in raw_data[1:]:
             new_row = []
-            for cell in row:
-                # 全てのセルに対して、前後の空白除去 ＆ 先頭の ' を削除
-                clean_cell = cell.strip().lstrip("'")
+            for ss_header in spreadsheet_headers:
+                cell_val = ""  # デフォルトは空文字
+
+                if ss_header == "ステータス":
+                    # C列には固定で「新規」をセット
+                    cell_val = "新規"
+                elif ss_header == "顧客住所":
+                    # 住所関連の列を結合
+                    address_parts = []
+                    for col_name in address_csv_columns:
+                        if col_name in header_map:
+                            idx = header_map[col_name]
+                            if idx < len(row) and row[idx]: # 空の要素は結合しない
+                                address_parts.append(row[idx])
+                    cell_val = "".join(address_parts)
+
+                elif ss_header in csv_to_ss_map:
+                    # 通常の列マッピング
+                    csv_col_name = csv_to_ss_map[ss_header]
+                    if csv_col_name in header_map:
+                        idx = header_map[csv_col_name]
+                        if idx < len(row):
+                            cell_val = row[idx]
+                
+                # 前後の空白除去 ＆ 先頭の ' を削除
+                clean_cell = cell_val.strip().lstrip("'")
                 new_row.append(clean_cell)
             data_list.append(new_row)
             
-        write_log("データの整形完了 (全てのクォートを削除)")
+        write_log(f"データの整形完了 (指定された{len(spreadsheet_headers)}項目のみ抽出し並び替えました)")
 
     except Exception as e:
         write_log(f"楽楽販売へのアクセス中にエラーが発生: {e}")
@@ -141,12 +229,13 @@ def main():
             write_log(f"シート '{SHEET_NAME}' が見つかりませんでした。最初のシートを使用します。")
             worksheet = workbook.get_worksheet(0)
 
-        worksheet.clear()
+        # A,B列および1行目（ヘッダー）を残すため、C2以降のデータをクリア
+        worksheet.batch_clear(['C2:Z'])
 
         write_log(f"スプレッドシート '{worksheet.title}' を更新しています...")
         
         worksheet.update(
-            range_name='A1', 
+            range_name='C2', 
             values=data_list, 
             value_input_option='USER_ENTERED'
         )

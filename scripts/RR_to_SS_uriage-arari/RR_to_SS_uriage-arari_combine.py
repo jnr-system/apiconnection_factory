@@ -70,8 +70,8 @@ DB_CONFIGS = [
         },
         "category_settings": [
             {"label": "給湯器", "keyword": "給湯器",
-             "cells": {"billing": "", "cost": "", "const": "", "count": "AK74"},
-             "future_cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": ""},
+             "cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": "AK74"},
+             "future_cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": "AK74"},
              "contract_cells": {
                  "billing": "AK60", "count": "AK59",
                  "cancel_count": "AK61",
@@ -83,8 +83,8 @@ DB_CONFIGS = [
                  "pending_count": "AK67"
              }},
             {"label": "エコキュート", "keyword": "エコキュート",
-             "cells": {"billing": "", "cost": "", "const": "", "count": "AK102"},
-             "future_cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK86"},
+             "cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK102"},
+             "future_cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK102"},
              "contract_cells": {
                  "billing": "AK88", "count": "AK87",
                  "cancel_count": "AK89",
@@ -96,8 +96,8 @@ DB_CONFIGS = [
                  "pending_count": "AK95"
              }},
             {"label": "コンロ", "keyword": "コンロ",
-             "cells": {"billing": "", "cost": "", "const": "", "count": "AK130"},
-             "future_cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK114"},
+             "cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK130"},
+             "future_cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK130"},
              "contract_cells": {
                  "billing": "AK116", "count": "AK115",
                  "cancel_count": "AK117",
@@ -202,7 +202,7 @@ def main():
     today = datetime.now()
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    range_start = (today - timedelta(days=71)).replace(hour=0, minute=0, second=0, microsecond=0)
+    range_start = (today - timedelta(days=16)).replace(hour=0, minute=0, second=0, microsecond=0)
     range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
@@ -503,11 +503,13 @@ def main():
                                         _ensure_extra("total")
                                         extra_contract_store[fmt_cdate]["total"]["cancel_count"] += 1
                                         _ensure_contract("total")
+                                        contract_store[fmt_cdate]["total"]["billing"] += val_bill
                                         contract_store[fmt_cdate]["total"]["count"] += 1
                                         if matched_cat:
                                             _ensure_extra(matched_cat)
                                             extra_contract_store[fmt_cdate][matched_cat]["cancel_count"] += 1
                                             _ensure_contract(matched_cat)
+                                            contract_store[fmt_cdate][matched_cat]["billing"] += val_bill
                                             contract_store[fmt_cdate][matched_cat]["count"] += 1
 
                                     # ② 再工事 (排他)
@@ -661,10 +663,7 @@ def main():
                         f_bill.append(""); f_cost.append(""); f_const.append(""); f_count.append("")
                     else:
                         p_bill.append(""); p_cost.append(""); p_const.append(""); p_count.append("")
-                        if label_key == "total":
-                            f_bill.append(val_bill); f_cost.append(""); f_const.append(""); f_count.append(val_count)
-                        else:
-                            f_bill.append(""); f_cost.append(""); f_const.append(""); f_count.append("")
+                        f_bill.append(val_bill); f_cost.append(val_cost); f_const.append(val_const); f_count.append(val_count)
 
                 def smart_update(p_cell, f_cell, p_data, f_data, is_count=False):
                     if not p_cell and not f_cell: return
