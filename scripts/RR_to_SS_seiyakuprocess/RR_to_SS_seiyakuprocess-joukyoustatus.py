@@ -506,16 +506,18 @@ def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target
             # 単日をSTATUS_ROW_MAPの行に書き込む
             for status_name, row_idx in STATUS_ROW_MAP.items():
                 count_val = int(counts_day.get(status_name, 0))
-                cells_to_update_by_sheet[sheet_name].append(
-                    gspread.Cell(row=row_idx, col=target_col, value=count_val if count_val > 0 else "")
-                )
+                if count_val > 0:
+                    cells_to_update_by_sheet[sheet_name].append(
+                        gspread.Cell(row=row_idx, col=target_col, value=count_val)
+                    )
 
             # 累計をCUMULATIVE_ROW_MAPの行に書き込む
             for status_name, row_idx in CUMULATIVE_ROW_MAP.items():
                 count_val = int(counts_cum.get(status_name, 0))
-                cells_to_update_by_sheet[sheet_name].append(
-                    gspread.Cell(row=row_idx, col=target_col, value=count_val if count_val > 0 else "")
-                )
+                if count_val > 0:
+                    cells_to_update_by_sheet[sheet_name].append(
+                        gspread.Cell(row=row_idx, col=target_col, value=count_val)
+                    )
 
     for sheet_name_key, cells in cells_to_update_by_sheet.items():
         if cells:
