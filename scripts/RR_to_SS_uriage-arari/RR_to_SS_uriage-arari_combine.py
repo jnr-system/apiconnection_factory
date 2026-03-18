@@ -207,7 +207,7 @@ def main():
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
     range_start = (today - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    range_end   = (today + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
 
