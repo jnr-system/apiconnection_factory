@@ -54,27 +54,28 @@ DB_INQUIRY = {
 LIMIT_PER_REQUEST = 10000
 
 # 5. スプレッドシートの書き込み位置設定
-COL_START_ALL     = 4   # ★全体の開始列 (F列=6)
-COL_START_KYUTOKI = 38  # ★給湯器の開始列 (AP列=42)
-COL_START_ECO     = 72  # ★エコキュートの開始列 (BZ列=78)
+COL_START_ALL     = 4   # D列
+COL_START_KYUTOKI = 38  # AL列
+COL_START_ECO     = 72  # BT列
 
-# ★緊急度ごとの設定（検索キーワードと書き込み行番号）
+# ★小項目ステータスのグループ定義
+# 各小項目名と、それに該当するステータス名のリスト
+STATUS_GROUPS = [
+    ("一次受付", ["1 ■一次受付（ヒアリング）"]),
+    ("概算見積", ["1-10 ■概算見積（写真フォーム案内なし）", "1-11 ■概算見積（写真待ち）", "1-20 ■確認中（施工可否、現調含む）", "1-40 ■現地調査（成約前）"]),
+    ("最終見積", ["1-30 ■最終見積り済"]),
+    ("成約",     ["当日成約", "当日外成約"]),
+    ("失注",     ["1-61-A ■失注：他社（価格）", "1-61-B ■失注：他社（スピード）", "1-61-C ■失注：交換見送り", "1-61-D ■失注：その他・理由不明", "1-61-E ■失注：終了"]),
+    ("キャンセル", ["1-60 ■キャンセル（成約からキャンセル）"]),
+    ("対応不可", ["1-62 ■エリア外、施工・対応不可"]),
+]
+
+# ★緊急度ごとの設定（検索キーワードと書き込み開始行番号）
+# 小項目は STATUS_GROUPS の順に row_cum_start / row_day_start から連続して書き込む
 URGENCY_CONFIG = [
-    {
-        "name": "急ぎ", "keyword": "急ぎ",
-        "rows_cum": {"UU数": 6,  "成約数": 7,  "終了数": 8},  # 累積 (行6-8)
-        "rows_day": {"UU数": 18, "成約数": 19, "終了数": 20}  # 単日 (行32-34)
-    },
-    {
-        "name": "故障", "keyword": "故障",
-        "rows_cum": {"UU数": 9,  "成約数": 10, "終了数": 11}, # 累積 (行9-11)
-        "rows_day": {"UU数": 21, "成約数": 22, "終了数": 23}  # 単日 (行35-37)
-    },
-    {
-        "name": "不具合・検討", "keyword": "不具合・検討",
-        "rows_cum": {"UU数": 12, "成約数": 13, "終了数": 14}, # 累積 (行12-14)
-        "rows_day": {"UU数": 24, "成約数": 25, "終了数": 26}  # 単日 (行38-40)
-    }
+    {"name": "急ぎ",       "keyword": "急ぎ",       "row_cum_start": 7,  "row_day_start": 34},
+    {"name": "故障",       "keyword": "故障",       "row_cum_start": 15, "row_day_start": 42},
+    {"name": "不具合・検討", "keyword": "不具合・検討", "row_cum_start": 23, "row_day_start": 50},
 ]
 
 # ==============================================================================
@@ -166,27 +167,11 @@ def raw_to_df(df_raw):
 
     return pd.DataFrame(records) if records else pd.DataFrame()
 
-def get_kpi_counts(df):
-    """
-    データフレームからKPI（UU数、成約数、終了数）を集計する
-    UU数: その日の問い合わせ総件数（緊急度・商品タイプでフィルタ済みの全件）
-    成約数: 1-50 ■成約
-    終了数: 失注という文字が入ったステータス
-    """
+def count_status_group(df, statuses):
+    """指定ステータスリストに一致する件数を返す"""
     if df.empty:
-        return {"UU数": 0, "成約数": 0, "終了数": 0}
-
-    statuses = df["最終ステータス"]
-
-    uu_count       = len(df)
-    contract_count = int((statuses == "1-50 ■成約").sum())
-    lost_count     = int(statuses.str.contains("失注", na=False).sum())
-
-    return {
-        "UU数": uu_count,
-        "成約数": contract_count,
-        "終了数": lost_count
-    }
+        return 0
+    return int(df["最終ステータス"].isin(statuses).sum())
 
 def update_spreadsheet_cells(df, target_dates):
     """スプレッドシートを更新する"""
@@ -251,30 +236,23 @@ def update_spreadsheet_cells(df, target_dates):
             for config in URGENCY_CONFIG:
                 keyword = config["keyword"]
 
-                # --- 単日カウント ---
-                counts_day = {"UU数": 0, "成約数": 0, "終了数": 0}
-                if not subset_day_prod.empty:
-                    subset_cat = subset_day_prod[subset_day_prod["緊急度判定"].str.contains(keyword, na=False)]
-                    counts_day = get_kpi_counts(subset_cat)
+                # 緊急度でフィルタ
+                subset_day_urg = subset_day_prod[subset_day_prod["緊急度判定"].str.contains(keyword, na=False)] if not subset_day_prod.empty else pd.DataFrame()
+                subset_cum_urg = subset_cum_prod[subset_cum_prod["緊急度判定"].str.contains(keyword, na=False)] if not subset_cum_prod.empty else pd.DataFrame()
 
-                # --- 累計カウント ---
-                counts_cum = {"UU数": 0, "成約数": 0, "終了数": 0}
-                if not subset_cum_prod.empty:
-                    subset_cat_cum = subset_cum_prod[subset_cum_prod["緊急度判定"].str.contains(keyword, na=False)]
-                    counts_cum = get_kpi_counts(subset_cat_cum)
+                # 小項目ごとに書き込み
+                for i, (_, statuses) in enumerate(STATUS_GROUPS):
+                    row_day = config["row_day_start"] + i
+                    row_cum = config["row_cum_start"] + i
 
-                # 単日書き込み
-                for kpi_name, row_idx in config["rows_day"].items():
-                    val = counts_day.get(kpi_name, 0)
+                    val_day = count_status_group(subset_day_urg, statuses)
+                    val_cum = count_status_group(subset_cum_urg, statuses)
+
                     cells_to_update_by_sheet[sheet_name].append(
-                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
+                        gspread.Cell(row=row_day, col=target_col, value=val_day if val_day > 0 else "")
                     )
-
-                # 累計書き込み
-                for kpi_name, row_idx in config["rows_cum"].items():
-                    val = counts_cum.get(kpi_name, 0)
                     cells_to_update_by_sheet[sheet_name].append(
-                        gspread.Cell(row=row_idx, col=target_col, value=val if val > 0 else "-")
+                        gspread.Cell(row=row_cum, col=target_col, value=val_cum if val_cum > 0 else "")
                     )
 
     for sheet_name_key, cells in cells_to_update_by_sheet.items():
