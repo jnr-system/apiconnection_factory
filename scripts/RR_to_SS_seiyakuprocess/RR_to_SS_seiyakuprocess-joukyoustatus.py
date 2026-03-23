@@ -1,4 +1,3 @@
-import calendar
 import pandas as pd
 import requests
 import io
@@ -26,9 +25,6 @@ except ImportError:
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
 TARGET_DATE_START = "" 
 TARGET_DATE_END   = ""
-
-# 1-2. スナップショット保存先（スクリプトと同じフォルダ内の snapshots/ フォルダ）
-SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "1AB5qDa4-k2kcgDTLe-agPfYNw69KlhdoHzukfavfFqQ"
@@ -85,14 +81,33 @@ COL_START_ECO     = 80  # CB列 (エコキュートの開始列)
 # 6. ログファイル設定
 EXCEL_FILE_NAME = "seiyaku_output_v2.xlsx"
 
+# ★各ステータスと、スプレッドシートの「書き込み行番号」のマッピング（累計）
+CUMULATIVE_ROW_MAP = {
+    "1 ■一次受付（ヒアリング）": 8,
+    "1-10 ■概算見積（写真フォーム案内なし）": 10,
+    "1-11 ■概算見積（写真待ち）": 11,
+    "1-20 ■確認中（施工可否、現調含む）": 12,
+    "1-40 ■現地調査（成約前）": 13,
+    "1-30 ■最終見積り済": 14,
+    "当日成約": 16,
+    "当日外成約": 17,
+    "1-61-A ■失注：他社（価格）": 19,
+    "1-61-B ■失注：他社（スピード）": 20,
+    "1-61-C ■失注：交換見送り": 21,
+    "1-61-D ■失注：その他・理由不明": 22,
+    "1-61-E ■失注：終了": 23,
+    "1-60 ■キャンセル（成約からキャンセル）": 24,
+    "1-62 ■エリア外、施工・対応不可": 26,
+    "その他全て": 28,
+}
 # ★各ステータスと、スプレッドシートの「書き込み行番号」のマッピング（単日）
 STATUS_ROW_MAP = {
     "1 ■一次受付（ヒアリング）": 46,
     "1-10 ■概算見積（写真フォーム案内なし）": 48,
     "1-11 ■概算見積（写真待ち）": 49,
     "1-20 ■確認中（施工可否、現調含む）": 50,
-    "1-30 ■最終見積り済": 51,
-    "1-40 ■現地調査（成約前）": 52,
+    "1-40 ■現地調査（成約前）": 51,
+    "1-30 ■最終見積り済": 52,
     "当日成約": 54,
     "当日外成約": 55,
     "1-61-A ■失注：他社（価格）": 57,
@@ -105,25 +120,6 @@ STATUS_ROW_MAP = {
     "その他全て": 66
 }
 
-# ★各ステータスと、スプレッドシートの「書き込み行番号」のマッピング（累計）
-CUMULATIVE_ROW_MAP = {
-    "1 ■一次受付（ヒアリング）": 8,
-    "1-10 ■概算見積（写真フォーム案内なし）": 10,
-    "1-11 ■概算見積（写真待ち）": 11,
-    "1-20 ■確認中（施工可否、現調含む）": 12,
-    "1-30 ■最終見積り済": 13,
-    "1-40 ■現地調査（成約前）": 14,
-    "当日成約": 16,
-    "当日外成約": 17,
-    "1-61-A ■失注：他社（価格）": 19,
-    "1-61-B ■失注：他社（スピード）": 20,
-    "1-61-C ■失注：交換見送り": 21,
-    "1-61-D ■失注：その他・理由不明": 22,
-    "1-61-E ■失注：終了": 23,
-    "1-60 ■キャンセル（成約からキャンセル）": 24,
-    "1-62 ■エリア外、施工・対応不可": 26,
-    "その他全て": 28,
-}
 
 # ==============================================================================
 # ■ 共通関数
@@ -208,116 +204,6 @@ def fetch_rakuraku_csv(settings):
     combined_df = combined_df.drop_duplicates(subset=[settings["cols"]["id"]])
     write_log(f"合計（重複除去後）: {len(combined_df)}件")
     return combined_df
-
-# ==============================================================================
-# ■ スナップショット関連
-# ==============================================================================
-
-def save_snapshot(df_inq_raw, snapshot_date):
-    """
-    問い合わせ管理DBの全件スナップショットをJSONに保存する。
-    ファイル名: snapshots/YYYY-MM-DD.json
-    内容: {記録ID: {status, product_type, inq_date}}
-    """
-    SNAPSHOT_DIR.mkdir(exist_ok=True)
-
-    cols = DB_INQUIRY["cols"]
-    data = {}
-
-    for _, row in df_inq_raw.iterrows():
-        record_id = str(row.get(cols["id"], "")).strip()
-        if not record_id or record_id == "nan":
-            continue
-
-        raw_status   = str(row.get(cols["status"], "")).strip()
-        status       = normalize_status(raw_status)
-        product_type = str(row.get(cols["product_type"], "")).strip()
-        # 日付形式を YYYY-MM-DD に統一（スラッシュをハイフンに置換）
-        inq_date     = str(row.get(cols["date"], ""))[:10].replace("/", "-")
-
-        data[record_id] = {
-            "status":       status,
-            "product_type": product_type if product_type != "nan" else "",
-            "inq_date":     inq_date,
-        }
-
-    file_path = SNAPSHOT_DIR / f"{snapshot_date}.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    write_log(f"スナップショット保存: {file_path.name} ({len(data)}件)")
-    return data
-
-def snapshot_to_df(snapshot_data, cum_start=None):
-    """
-    スナップショットデータをDataFrameに変換する。
-    cum_start を指定すると「新規問い合わせ日 >= cum_start」の案件のみを残す。
-    """
-    if not snapshot_data:
-        return pd.DataFrame()
-
-    col_product = DB_INQUIRY["cols"]["product_type"]
-    records = []
-
-    for _, info in snapshot_data.items():
-        inq_date_str = info.get("inq_date", "")
-        inq_date = None
-        try:
-            if inq_date_str and len(inq_date_str) >= 10:
-                inq_date = datetime.strptime(inq_date_str[:10], "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-        # 累計フィルタ
-        if cum_start is not None:
-            if inq_date is None or inq_date < cum_start:
-                continue
-
-        records.append({
-            "最終ステータス": info.get("status", "その他全て"),
-            col_product:     info.get("product_type", ""),
-            "日付_単体":      inq_date, # 日付フィルタ用に保持
-        })
-
-    return pd.DataFrame(records) if records else pd.DataFrame()
-
-def load_snapshot_for_date(target_date):
-    """指定日のスナップショットJSONがあれば読み込んでDataFrameにする"""
-    file_path = SNAPSHOT_DIR / f"{target_date}.json"
-    if file_path.exists():
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return snapshot_to_df(data)
-        except Exception as e:
-            write_log(f"スナップショット読み込み失敗 ({target_date}): {e}")
-    return None
-
-def cleanup_old_snapshots(base_date):
-    """3ヶ月より古いスナップショットファイルを自動削除する"""
-    if not SNAPSHOT_DIR.exists():
-        return
-
-    cutoff_month = base_date.month - 3
-    cutoff_year  = base_date.year
-    if cutoff_month <= 0:
-        cutoff_month += 12
-        cutoff_year  -= 1
-    max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-    cutoff  = datetime(cutoff_year, cutoff_month, min(base_date.day, max_day)).date()
-
-    deleted = 0
-    for f in SNAPSHOT_DIR.glob("*.json"):
-        try:
-            file_date = datetime.strptime(f.stem, "%Y-%m-%d").date()
-            if file_date < cutoff:
-                f.unlink()
-                deleted += 1
-        except ValueError:
-            pass
-
-    if deleted > 0:
-        write_log(f"古いスナップショット削除: {deleted}件 ({cutoff}より前)")
 
 # ==============================================================================
 # ■ 成約管理DB処理（v1と同じ）
@@ -455,13 +341,8 @@ def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target
         subset_day_cont = df_cont_target[df_cont_target["日付_単体"] == d] if not df_cont_target.empty else pd.DataFrame()
         subset_cum_cont = df_cont_cum[(df_cont_cum["日付_単体"] <= d) & (df_cont_cum["日付_単体"] >= start_window)] if not df_cont_cum.empty else pd.DataFrame()
 
-        # 2. 問い合わせDB（問い合わせ日ベース）★修正：過去のスナップショットがあればそれを使う
-        df_inq_use = load_snapshot_for_date(d)
-        if df_inq_use is None:
-            # 過去ファイルがない場合は、引数で渡された最新データ(df_inq_current)を使用（従来通りの挙動）
-            df_inq_use = df_inq_current
-        else:
-            write_log(f"  [{d}] 過去のスナップショットを使用して集計します")
+        # 2. 問い合わせDB（問い合わせ日ベース）
+        df_inq_use = df_inq_current
 
         subset_day_inq = df_inq_use[df_inq_use["日付_単体"] == d] if not df_inq_use.empty else pd.DataFrame()
         subset_cum_inq = df_inq_use[(df_inq_use["日付_単体"] <= d) & (df_inq_use["日付_単体"] >= start_window)] if not df_inq_use.empty else pd.DataFrame()
@@ -552,23 +433,34 @@ def main():
     write_log(f"集計対象期間: {start_date} 〜 {end_date} ({days}日間)")
     write_log(f"データ取得範囲: {cum_start} 以降 (累計計算用)")
 
-    # ── 古いスナップショットを削除（3ヶ月より前） ────────────────
-    cleanup_old_snapshots(end_date)
-
-    # ── 1. 問い合わせ管理DBの取得・スナップショット保存 ──────────
+    # ── 1. 問い合わせ管理DBの取得 ──────────────────────────────
     write_log(">>> 問い合わせ管理DBの取得を開始します")
     df_inq_raw = fetch_rakuraku_csv(DB_INQUIRY)
 
     df_inq_current = pd.DataFrame()
 
     if not df_inq_raw.empty:
-        # 指定期間の最終日（通常は昨日/今日）の名前でスナップショット保存
-        snapshot_data = save_snapshot(df_inq_raw, end_date)
-
-        # 最新データとして保持（スナップショットがない日のフォールバック用）
-        df_inq_current = snapshot_to_df(snapshot_data)
-
-        write_log(f"スナップショット全件: {len(df_inq_current)}件")
+        cols_inq = DB_INQUIRY["cols"]
+        col_product = cols_inq["product_type"]
+        records = []
+        for _, row in df_inq_raw.iterrows():
+            raw_status   = str(row.get(cols_inq["status"], "")).strip()
+            status       = normalize_status(raw_status)
+            product_type = str(row.get(col_product, "")).strip()
+            inq_date_str = str(row.get(cols_inq["date"], ""))[:10].replace("/", "-")
+            inq_date = None
+            try:
+                if inq_date_str and len(inq_date_str) >= 10:
+                    inq_date = datetime.strptime(inq_date_str[:10], "%Y-%m-%d").date()
+            except ValueError:
+                pass
+            records.append({
+                "最終ステータス": status,
+                col_product:     product_type if product_type != "nan" else "",
+                "日付_単体":      inq_date,
+            })
+        df_inq_current = pd.DataFrame(records)
+        write_log(f"問い合わせデータ: {len(df_inq_current)}件")
 
     # ── 2. 成約管理DBの取得・加工（v1と同じ） ───────────────────
     write_log(">>> 成約管理DBの取得を開始します")
