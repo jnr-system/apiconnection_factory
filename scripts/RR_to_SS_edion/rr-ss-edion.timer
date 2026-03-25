@@ -1,0 +1,9 @@
+[Unit]
+Description=RR to SS エディオン案件データ同期 タイマー (15分毎)
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
