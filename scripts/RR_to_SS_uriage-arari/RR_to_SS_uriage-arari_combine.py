@@ -25,7 +25,7 @@ RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
 RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
 # 2. Googleスプレッドシートの設定
-SPREADSHEET_KEY = "1MeMNN29TGNkhpVw6JeSbvGjrSsbx7FYNBU0oo1dkfSE"
+SPREADSHEET_KEY = "1GcdqrgNXwKNCz-ZED0AvGWUKCPqEooLOat-pjRuGCOI"
 LOG_FILE_NAME = "execution_csv_log.txt"
 
 # ★書式設定の定義
@@ -55,62 +55,62 @@ DB_CONFIGS = [
         ],
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "", "cost": "", "const": "", "count": "AK27"},
-            "future_cells": {"billing": "AK22", "cost": "", "const": "", "count": "AK21"},
-            "extra_future_cells": {"billing": "AK29", "cost": "AK30", "const": "AK31"},
+            "cells": {"billing": "", "cost": "", "const": "", "count": "AK24"},
+            "future_cells": {"billing": "AK22", "cost": "", "const": "", "count": "", "count_b": "AK23"},
+            "extra_future_cells": {"billing": "AK28", "cost": "AK29", "const": "AK30"},
             "contract_cells": {
                 "billing": "AK13", "count": "AK12",
                 "cancel_count": "AK14",
                 "sum_count": "AK15",
-                "complete_count": "AK16", "complete_count_b": "AK23",
-                "next_month_count": "AK17", "next_month_count_b": "AK25",
-                "rework_current_month_count": "AK18", "rework_current_month_count_b": "AK24",
+                "complete_count": "AK16",
+                "next_month_count": "AK17",
+                "rework_current_month_count": "AK18", "rework_current_month_count_b": "AK25",
                 "rework_next_month_count": "AK19", "rework_next_month_count_b": "AK26",
                 "pending_count": "AK20"
             }
         },
         "category_settings": [
             {"label": "給湯器", "keyword": "給湯器",
-             "cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": "AK74"},
-             "future_cells": {"billing": "AK69", "cost": "", "const": "", "count": "AK68"},
-             "extra_count_cell": "AK58",
+             "cells": {"billing": "AK46", "cost": "AK47", "const": "AK48", "count": ""},
+             "future_cells": {"billing": "AK68", "cost": "", "const": "", "count": "AK69"},
+             "extra_count_cell": "AK57", "extra_count_cell_b": "AK70",
              "contract_cells": {
-                 "billing": "AK60", "count": "AK59",
-                 "cancel_count": "AK61",
-                 "sum_count": "AK62",
-                 "complete_count": "AK63", "complete_count_b": "AK70",
-                 "next_month_count": "AK64", "next_month_count_b": "AK72",
-                 "rework_current_month_count": "AK65", "rework_current_month_count_b": "AK71",
-                 "rework_next_month_count": "AK66", "rework_next_month_count_b": "AK73",
-                 "pending_count": "AK67"
+                 "billing": "AK59", "count": "AK58",
+                 "cancel_count": "AK60",
+                 "sum_count": "AK61",
+                 "complete_count": "AK62",
+                 "next_month_count": "AK63",
+                 "rework_current_month_count": "AK64", "rework_current_month_count_b": "AK71",
+                 "rework_next_month_count": "AK65", "rework_next_month_count_b": "AK72",
+                 "pending_count": "AK66"
              }},
             {"label": "エコキュート", "keyword": "エコキュート",
-             "cells": {"billing": "AK75", "cost": "AK76", "const": "AK77", "count": "AK102"},
-             "future_cells": {"billing": "AK97", "cost": "", "const": "", "count": "AK96"},
-             "extra_count_cell": "AK86",
+             "cells": {"billing": "AK73", "cost": "AK74", "const": "AK75", "count": ""},
+             "future_cells": {"billing": "AK95", "cost": "", "const": "", "count": "AK96"},
+             "extra_count_cell": "AK97",
              "contract_cells": {
-                 "billing": "AK88", "count": "AK87",
-                 "cancel_count": "AK89",
-                 "sum_count": "AK90",
-                 "complete_count": "AK91", "complete_count_b": "AK98",
-                 "next_month_count": "AK92", "next_month_count_b": "AK100",
-                 "rework_current_month_count": "AK93", "rework_current_month_count_b": "AK99",
-                 "rework_next_month_count": "AK94", "rework_next_month_count_b": "AK101",
-                 "pending_count": "AK95"
+                 "billing": "AK86", "count": "AK85",
+                 "cancel_count": "AK87",
+                 "sum_count": "AK88",
+                 "complete_count": "AK89",
+                 "next_month_count": "AK90",
+                 "rework_current_month_count": "AK91", "rework_current_month_count_b": "AK98",
+                 "rework_next_month_count": "AK92", "rework_next_month_count_b": "AK99",
+                 "pending_count": "AK93"
              }},
             {"label": "コンロ", "keyword": "コンロ",
-             "cells": {"billing": "AK103", "cost": "AK104", "const": "AK105", "count": "AK130"},
-             "future_cells": {"billing": "AK125", "cost": "", "const": "", "count": "AK124"},
-             "extra_count_cell": "AK114",
+             "cells": {"billing": "AK100", "cost": "AK101", "const": "AK102", "count": ""},
+             "future_cells": {"billing": "AK122", "cost": "", "const": "", "count": "AK123"},
+             "extra_count_cell": "AK124",
              "contract_cells": {
-                 "billing": "AK116", "count": "AK115",
-                 "cancel_count": "AK117",
-                 "sum_count": "AK118",
-                 "complete_count": "AK119", "complete_count_b": "AK126",
-                 "next_month_count": "AK120", "next_month_count_b": "AK128",
-                 "rework_current_month_count": "AK121", "rework_current_month_count_b": "AK127",
-                 "rework_next_month_count": "AK122", "rework_next_month_count_b": "AK129",
-                 "pending_count": "AK123"
+                 "billing": "AK113", "count": "AK112",
+                 "cancel_count": "AK114",
+                 "sum_count": "AK115",
+                 "complete_count": "AK116",
+                 "next_month_count": "AK117",
+                 "rework_current_month_count": "AK118", "rework_current_month_count_b": "AK125",
+                 "rework_next_month_count": "AK119", "rework_next_month_count_b": "AK126",
+                 "pending_count": "AK120"
              }}
         ]
     },
@@ -127,7 +127,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK164", "cost": "AK165", "const": "AK166"},
+            "cells": {"billing": "AK160", "cost": "AK161", "const": "AK162"},
             "future_cells": {}
         },
         "category_settings": []
@@ -145,7 +145,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK168", "cost": "AK169", "const": "AK170"},
+            "cells": {"billing": "AK164", "cost": "AK165", "const": "AK166"},
             "future_cells": {}
         },
         "category_settings": []
@@ -206,8 +206,8 @@ def main():
     today = datetime.now()
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    range_start = (today - timedelta(days=15)).replace(hour=0, minute=0, second=0, microsecond=0)
-    range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    range_start = (today - timedelta(days=52)).replace(hour=0, minute=0, second=0, microsecond=0)
+    range_end   = (today + timedelta(days=6)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
 
@@ -709,10 +709,16 @@ def main():
                 smart_update(past_cells.get("cost"),    future_cells.get("cost"),    p_cost, f_cost, is_count=False)
                 smart_update(past_cells.get("const"),   future_cells.get("const"),   p_const, f_const, is_count=False)
                 smart_update(past_cells.get("count"),   future_cells.get("count"),   p_count, f_count, is_count=True)
+                if future_cells.get("count_b"):
+                    smart_update(None, future_cells.get("count_b"), p_count, f_count, is_count=True)
 
                 extra_count_cell = settings_dict.get("extra_count_cell")
                 if extra_count_cell:
                     smart_update(extra_count_cell, None, p_count, f_count, is_count=True)
+
+                extra_count_cell_b = settings_dict.get("extra_count_cell_b")
+                if extra_count_cell_b:
+                    smart_update(extra_count_cell_b, None, p_count, f_count, is_count=True)
 
                 extra_future = settings_dict.get("extra_future_cells", {})
                 if extra_future:
