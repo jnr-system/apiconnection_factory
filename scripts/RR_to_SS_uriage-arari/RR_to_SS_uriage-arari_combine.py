@@ -25,7 +25,7 @@ RAKURAKU_DOMAIN = "hntobias.rakurakuhanbai.jp"
 RAKURAKU_TOKEN = os.environ["RAKURAKU_TOKEN"]
 
 # 2. Googleスプレッドシートの設定
-SPREADSHEET_KEY = "1GcdqrgNXwKNCz-ZED0AvGWUKCPqEooLOat-pjRuGCOI"
+SPREADSHEET_KEY = "1MeMNN29TGNkhpVw6JeSbvGjrSsbx7FYNBU0oo1dkfSE"
 LOG_FILE_NAME = "execution_csv_log.txt"
 
 # ★書式設定の定義
@@ -206,8 +206,8 @@ def main():
     today = datetime.now()
     today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    range_start = (today - timedelta(days=52)).replace(hour=0, minute=0, second=0, microsecond=0)
-    range_end   = (today + timedelta(days=6)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    range_start = (today - timedelta(days=15)).replace(hour=0, minute=0, second=0, microsecond=0)
+    range_end   = (today + timedelta(days=31)).replace(hour=23, minute=59, second=59, microsecond=999999)
     
     write_log(f"更新対象期間: {range_start.strftime('%Y/%m/%d')} ～ {range_end.strftime('%Y/%m/%d')}")
 
@@ -669,24 +669,29 @@ def main():
                         p_bill.append(""); p_cost.append(""); p_const.append(""); p_count.append("")
                         f_bill.append(val_bill); f_cost.append(val_cost); f_const.append(val_const); f_count.append(val_count)
 
-                def smart_update(p_cell, f_cell, p_data, f_data, is_count=False):
+                def smart_update(p_cell, f_cell, p_data, f_data, is_count=False, preserve_past=False):
                     if not p_cell and not f_cell: return
-                    
+
                     # リトライ付き書き込み関数
-                    def update_and_format_with_retry(cell_addr, vals):
+                    # preserve_past=True の場合、先頭の "" をスキップして書き込み開始列をずらす
+                    # （過去分のセルを上書きしないため）
+                    def update_and_format_with_retry(cell_addr, vals, skip_empty_prefix=False):
+                        r, c = a1_to_rc(cell_addr)
+                        offset = start_day - 1
+                        if skip_empty_prefix:
+                            first_valid = next((i for i, v in enumerate(vals) if v != ""), None)
+                            if first_valid is None:
+                                return  # 書き込むデータなし
+                            offset += first_valid
+                            vals = vals[first_valid:]
+                        write_cell = rc_to_a1(r, c + offset)
+                        end_col = c + offset + len(vals) - 1
                         max_retries = 5
                         for i in range(max_retries):
                             try:
-                                r, c = a1_to_rc(cell_addr)
-                                worksheet.update(range_name=rc_to_a1(r, c + (start_day - 1)), values=[vals])
-                                
-                                if is_count:
-                                    end_col = c + (start_day - 1) + len(vals) - 1
-                                    worksheet.format(f"{rc_to_a1(r, c + (start_day - 1))}:{rc_to_a1(r, end_col)}", NORMAL_FORMAT)
-                                else:
-                                    end_col = c + (start_day - 1) + len(vals) - 1
-                                    worksheet.format(f"{rc_to_a1(r, c + (start_day - 1))}:{rc_to_a1(r, end_col)}", THOUSAND_FORMAT)
-                                
+                                worksheet.update(range_name=write_cell, values=[vals])
+                                fmt = NORMAL_FORMAT if is_count else THOUSAND_FORMAT
+                                worksheet.format(f"{write_cell}:{rc_to_a1(r, end_col)}", fmt)
                                 time.sleep(2) # 成功しても2秒待つ（重要）
                                 return # 成功したら抜ける
                             except Exception as e:
@@ -703,14 +708,14 @@ def main():
                         update_and_format_with_retry(p_cell, combined)
                     else:
                         if p_cell: update_and_format_with_retry(p_cell, p_data)
-                        if f_cell: update_and_format_with_retry(f_cell, f_data)
+                        if f_cell: update_and_format_with_retry(f_cell, f_data, skip_empty_prefix=preserve_past)
 
                 smart_update(past_cells.get("billing"), future_cells.get("billing"), p_bill, f_bill, is_count=False)
                 smart_update(past_cells.get("cost"),    future_cells.get("cost"),    p_cost, f_cost, is_count=False)
                 smart_update(past_cells.get("const"),   future_cells.get("const"),   p_const, f_const, is_count=False)
-                smart_update(past_cells.get("count"),   future_cells.get("count"),   p_count, f_count, is_count=True)
+                smart_update(past_cells.get("count"),   future_cells.get("count"),   p_count, f_count, is_count=True, preserve_past=True)
                 if future_cells.get("count_b"):
-                    smart_update(None, future_cells.get("count_b"), p_count, f_count, is_count=True)
+                    smart_update(None, future_cells.get("count_b"), p_count, f_count, is_count=True, preserve_past=True)
 
                 extra_count_cell = settings_dict.get("extra_count_cell")
                 if extra_count_cell:
