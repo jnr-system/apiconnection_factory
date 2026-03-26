@@ -22,8 +22,8 @@ except ImportError:
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = ""
-TARGET_DATE_END   = ""
+TARGET_DATE_START = "2026/02/01"
+TARGET_DATE_END   = "2026/03/26"
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "19l5TYkXN1SdwrWNVkgKHLymx4_chqSunOrY-2rAqW14" # ★スプレッドシートID
@@ -213,13 +213,13 @@ def update_spreadsheet_cells(df, target_dates):
             continue
 
         # ── 日付フィルタリング ──────────────────────────────
-        # 累計の集計期間（月初から当日まで）
-        start_window = d.replace(day=1)
+        # 累計の集計期間（15日前から当日まで）
+        start_window = d - timedelta(days=14)
 
         # 単日データ（その日のデータ）
         subset_day = df[df["日付_単体"] == d] if not df.empty else pd.DataFrame()
 
-        # 累計データ（月初から当日まで）
+        # 累計データ（15日前から当日まで）
         subset_cum = df[(df["日付_単体"] >= start_window) & (df["日付_単体"] <= d)] if not df.empty else pd.DataFrame()
 
         for prod_name, start_col, prod_keyword in product_categories:
@@ -272,13 +272,18 @@ def main():
         start_date = datetime.strptime(TARGET_DATE_START, "%Y/%m/%d").date()
         end_date   = datetime.strptime(TARGET_DATE_END,   "%Y/%m/%d").date()
     else:
-        end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date  # 日付未指定時は前日のみ
+        # 自動モード：当日のみを集計対象とする
+        start_date = datetime.now().date()
+        end_date   = start_date
 
     days = (end_date - start_date).days + 1
     target_dates = [start_date + timedelta(days=i) for i in range(days)]
 
+    # 累計用データの取得開始日（集計日の15日前）
+    cum_start = start_date - timedelta(days=14)
+
     write_log(f"集計対象期間: {start_date} 〜 {end_date} ({days}日間)")
+    write_log(f"データ取得範囲: {cum_start} 以降 (累計計算用)")
 
     # ── 1. 問い合わせ管理DBからの取得 ────────────────────────
     write_log(">>> 問い合わせ管理DBの取得を開始します")
