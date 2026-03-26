@@ -87,7 +87,7 @@ DB_CONFIGS = [
             {"label": "エコキュート", "keyword": "エコキュート",
              "cells": {"billing": "AK73", "cost": "AK74", "const": "AK75", "count": ""},
              "future_cells": {"billing": "AK95", "cost": "", "const": "", "count": "AK96"},
-             "extra_count_cell": "AK97",
+             "extra_count_cell": "AK84", "extra_count_cell_b": "AK97",
              "contract_cells": {
                  "billing": "AK86", "count": "AK85",
                  "cancel_count": "AK87",
@@ -101,7 +101,7 @@ DB_CONFIGS = [
             {"label": "コンロ", "keyword": "コンロ",
              "cells": {"billing": "AK100", "cost": "AK101", "const": "AK102", "count": ""},
              "future_cells": {"billing": "AK122", "cost": "", "const": "", "count": "AK123"},
-             "extra_count_cell": "AK124",
+             "extra_count_cell": "AK111", "extra_count_cell_b": "AK124",
              "contract_cells": {
                  "billing": "AK113", "count": "AK112",
                  "cancel_count": "AK114",
