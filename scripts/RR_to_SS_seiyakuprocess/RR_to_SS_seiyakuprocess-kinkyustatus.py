@@ -22,8 +22,8 @@ except ImportError:
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = "2026/02/01"
-TARGET_DATE_END   = "2026/03/26"
+TARGET_DATE_START = ""
+TARGET_DATE_END   = ""
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "19l5TYkXN1SdwrWNVkgKHLymx4_chqSunOrY-2rAqW14" # ★スプレッドシートID
