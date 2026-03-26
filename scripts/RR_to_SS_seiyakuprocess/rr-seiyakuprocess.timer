@@ -1,8 +1,8 @@
 [Unit]
-Description=RR to SS 成約プロセス同期 タイマー (毎日8時)
+Description=RR to SS 成約プロセス同期 タイマー (1時間ごと)
 
 [Timer]
-OnCalendar=*-*-* 08:00:00
+OnCalendar=*-*-* *:00:00
 Persistent=true
 
 [Install]
