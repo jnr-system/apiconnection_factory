@@ -23,8 +23,8 @@ except ImportError:
 # 1. 集計期間の設定
 # 指定がある場合はその期間を集計します（YYYY/MM/DD形式）
 # 指定がない場合（None または ""）は、実行日の「前日」を自動的に対象とします
-TARGET_DATE_START = "" 
-TARGET_DATE_END   = ""
+TARGET_DATE_START = "2026/02/01" 
+TARGET_DATE_END   = "2026/02/28"
 
 # 2. Googleスプレッドシート設定
 SPREADSHEET_KEY = "1AB5qDa4-k2kcgDTLe-agPfYNw69KlhdoHzukfavfFqQ"
@@ -284,7 +284,7 @@ def process_contract_raw_data(df):
 # ■ スプレッドシート更新
 # ==============================================================================
 
-def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates):
+def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates, now_datetime):
     """
     スナップショットデータを使ってスプレッドシートを更新する。
 
@@ -334,11 +334,16 @@ def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target
             continue
 
         # ── 日付フィルタリング ──────────────────────────────
-        # 累計の集計期間（当月1日から当日まで）
-        start_window = d.replace(day=1)
+        # 累計の集計期間（15日前から当日実行時刻まで）
+        start_window = d - timedelta(days=14)
 
         # 1. 成約DB（成約日ベース）
-        subset_day_cont = df_cont_target[df_cont_target["日付_単体"] == d] if not df_cont_target.empty else pd.DataFrame()
+        # 単日：当日0時〜実行時刻まで（成約日_dtで時刻フィルタ）
+        if not df_cont_target.empty:
+            mask_time = (df_cont_target["日付_単体"] == d) & (df_cont_target["成約日_dt"] <= now_datetime)
+            subset_day_cont = df_cont_target[mask_time]
+        else:
+            subset_day_cont = pd.DataFrame()
         subset_cum_cont = df_cont_cum[(df_cont_cum["日付_単体"] <= d) & (df_cont_cum["日付_単体"] >= start_window)] if not df_cont_cum.empty else pd.DataFrame()
 
         # 2. 問い合わせDB（問い合わせ日ベース）
@@ -418,17 +423,19 @@ def main():
         start_date = datetime.strptime(TARGET_DATE_START, "%Y/%m/%d").date()
         end_date   = datetime.strptime(TARGET_DATE_END,   "%Y/%m/%d").date()
     else:
-        # 自動モード：過去3日間（3日前〜前日）を集計対象とする
-        end_date   = datetime.now().date() - timedelta(days=1)
-        start_date = end_date - timedelta(days=2)
-        
+        # 自動モード：当日のみを集計対象とする
+        start_date = datetime.now().date()
+        end_date   = start_date
+
+    now_datetime = datetime.now()
+
     days = (end_date - start_date).days + 1
 
     # --- 単日としてスプレッドシートに書き込む対象日 ---
     target_dates = [start_date + timedelta(days=i) for i in range(days)]
 
-    # 累計用データの取得開始日（集計開始日の当月1日）
-    cum_start = start_date.replace(day=1)
+    # 累計用データの取得開始日（集計日の15日前）
+    cum_start = start_date - timedelta(days=14)
 
     write_log(f"集計対象期間: {start_date} 〜 {end_date} ({days}日間)")
     write_log(f"データ取得範囲: {cum_start} 以降 (累計計算用)")
@@ -493,7 +500,7 @@ def main():
     #     write_log(f"Excel出力エラー: {e}")
 
     # ── スプレッドシート更新 ──────────────────────────────────
-    update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates)
+    update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates, now_datetime)
 
     write_log("全処理完了。")
 
