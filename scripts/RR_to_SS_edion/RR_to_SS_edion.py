@@ -200,6 +200,10 @@ def main():
                             cell_val = row[idx]
 
                 clean_val = cell_val.strip().lstrip("'")
+
+                # スグフォームURLはハイパーリンク数式に変換
+                if ss_header == "スグフォームURL" and clean_val:
+                    clean_val = f'=HYPERLINK("{clean_val}","写真を開く")'
                 new_row.append(clean_val)
 
                 if ss_header == "レコードID":
