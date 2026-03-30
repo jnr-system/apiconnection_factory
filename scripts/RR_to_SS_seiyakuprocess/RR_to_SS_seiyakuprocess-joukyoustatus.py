@@ -285,17 +285,7 @@ def process_contract_raw_data(df):
 # ==============================================================================
 
 def update_spreadsheet_cells(df_inq_current, df_cont_target, df_cont_cum, target_dates, now_datetime):
-    """
-    スナップショットデータを使ってスプレッドシートを更新する。
-
-    単日 (STATUS_ROW_MAP):
-      - 問い合わせDB: その日のスナップショット（なければ最新）のステータス分布
-      - 成約DB:       成約日 = 対象日 の件数（v1と同じ）
-
-    累計 (CUMULATIVE_ROW_MAP):
-      - 問い合わせDB: その日のスナップショット（なければ最新）のうち問い合わせ日が当月の案件
-      - 成約DB:       成約日が当月内で、かつ対象日以前の案件
-    """
+    """スプレッドシートを更新する。"""
     write_log("スプレッドシートを更新中...")
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
