@@ -1,8 +1,8 @@
 [Unit]
-Description=RR to RMS Lstage 顧客データ同期 タイマー (1時間毎)
+Description=RR to RMS Lstage 顧客データ同期 タイマー (30分毎)
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*:0/30
 Persistent=true
 
 [Install]
