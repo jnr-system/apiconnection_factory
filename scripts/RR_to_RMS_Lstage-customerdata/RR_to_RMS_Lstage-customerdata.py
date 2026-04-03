@@ -82,6 +82,8 @@ def parse_progress(all_sku_ids):
     if "kouzi" in combined:
         return "工事込案件"
     if "zaiko" in combined:
+        if "楽天" in combined:
+            return "楽天倉庫出荷"
         return "自社在庫出荷"
     if "楽天倉庫在庫" in combined:
         return "楽天倉庫在庫"
