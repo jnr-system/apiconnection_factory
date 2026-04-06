@@ -142,11 +142,27 @@ def get_rakuraku_targets():
 
             key_id = row[0].strip()
             rms_no = row[1].strip()
+            progress = row[4].strip()
             zip_code = row[38].strip()
 
-            # 郵便番号が空のもの（未更新）のみ対象
-            if key_id and rms_no and not zip_code:
-                target_map[rms_no] = key_id
+            if not key_id or not rms_no:
+                continue
+
+            entry = {"keyId": key_id}
+
+            # 郵便番号が空 → 顧客情報更新対象（必須・決済完了状態に関わらず）
+            if not zip_code:
+                entry["type"] = "customer"
+
+            # 郵便番号あり・決済完了なし → 決済完了チェックのみ
+            if zip_code and "決済完了" not in progress:
+                entry["checkPayment"] = True
+
+            # どちらの対象でもなければスキップ
+            if "type" not in entry and "checkPayment" not in entry:
+                continue
+
+            target_map[rms_no] = entry
 
         write_log(f"楽楽販売から {len(target_map)} 件の待機データを取得しました。")
         return target_map
@@ -254,111 +270,141 @@ def main():
         return
 
     update_count = 0
+    payment_count = 0
+
+    url = f"https://{RAKURAKU_DOMAIN}/mspy4wa/apirecord/update/version/v1"
+    headers = {"Content-Type": "application/json", "X-HD-apitoken": RAKURAKU_TOKEN}
 
     for order in rms_orders:
         rms_number = order["orderNumber"]
 
-        if rms_number in rakuraku_map:
-            key_id = rakuraku_map[rms_number]
-            update_count += 1  # 処理試行件数としてカウント
+        if rms_number not in rakuraku_map:
+            continue
 
-            orderer = order["OrdererModel"]
-            package = order["PackageModelList"][0]
-            sender = package["SenderModel"]
-            remarks = order.get("remarks", "")
+        entry = rakuraku_map[rms_number]
+        key_id = entry["keyId"]
 
-            match = re.search(r"(\d{4})-(\d{2})-(\d{2})", remarks)
-            delivery_date = f"{match.group(1)}{match.group(2)}{match.group(3)}" if match else ""
-
-            # ── 全SKU IDを収集（ガス種・進捗判定に使用）──
-            all_sku_ids = []
-            for item in package.get("ItemModelList", []):
-                for sku in item.get("SkuModelList", []):
-                    sid = sku.get("merchantDefinedSkuId", "")
-                    if sid:
-                        all_sku_ids.append(sid)
-
-            # ── ガス種：最初に見つかったものを採用 ──
-            gas_type = "なし"
-            for item in package.get("ItemModelList", []):
-                for sku in item.get("SkuModelList", []):
-                    g = parse_gas_type(sku.get("skuInfo", ""))
-                    if g in ("都市ガス", "LPガス"):
-                        gas_type = g
-                        break
-                if gas_type in ("都市ガス", "LPガス"):
-                    break
-
-            # ── 進捗判定 ──
-            progress = parse_progress(all_sku_ids)
-
-            # ── 明細行を構築（商品キーごとに1行）──
-            detail_rows = []
-            for item in package.get("ItemModelList", []):
-                units = str(item.get("units", 1))
-                for sku in item.get("SkuModelList", []):
-                    keys = extract_product_keys(sku.get("merchantDefinedSkuId", ""))
-                    for key in keys:
-                        detail_rows.append({
-                            "113053": key,   # 商品選択（DBリンク）
-                            "113058": units  # 個数
-                        })
-
-            if not detail_rows:
-                write_log(f"  [WARN] keyId={key_id}: 商品キーが抽出できませんでした。ヘッダのみ更新します。")
-
-            url = f"https://{RAKURAKU_DOMAIN}/mspy4wa/apirecord/update/version/v1"
-            headers = {"Content-Type": "application/json", "X-HD-apitoken": RAKURAKU_TOKEN}
-
-            # ── 1回目: ヘッダ項目のみ更新（getSubordinateなし）──
-            try:
-                header_payload = {
-                    "dbSchemaId": RAKURAKU_SCHEMA_ID,
-                    "keyId": key_id,
-                    "values": {
-                        "113811": f"{orderer['phoneNumber1']}-{orderer['phoneNumber2']}-{orderer['phoneNumber3']}",
-                        "113772": str(order["totalPrice"]),
-                        "113095": f"{sender['zipCode1']}{sender['zipCode2']}",
-                        "113073": delivery_date,
-                        "113096": sender['prefecture'],
-                        "113097": sender['city'],
-                        "113098": sender['subAddress'],
-                        "113089": f"{sender['phoneNumber1']}-{sender['phoneNumber2']}-{sender['phoneNumber3']}",
-                        "113051": gas_type,                          # ガスの種類
-                        "113100": [progress] if progress else [],    # 進捗
-                    }
-                }
-                res1 = requests.post(url, headers=headers, json=header_payload, timeout=10)
-                if res1.status_code == 200:
-                    write_log(f"  [1/2 成功] keyId={key_id} ヘッダ更新完了")
-                else:
-                    write_log(f"  [1/2 失敗] keyId={key_id} ヘッダ更新失敗: {res1.status_code} {res1.text}")
-                time.sleep(1.0)
-            except Exception as e:
-                write_log(f"  [1/2 例外] keyId={key_id} ヘッダ更新中にエラー: {e}")
-
-            # ── 2回目: 商品明細追加（getSubordinate=1）──
-            if detail_rows:
+        # ── 決済完了チェック ──
+        if entry.get("checkPayment"):
+            order_progress = order.get("orderProgress")
+            if order_progress == 300:  # 発送待ち
                 try:
-                    detail_payload = {
+                    res = requests.post(url, headers=headers, json={
                         "dbSchemaId": RAKURAKU_SCHEMA_ID,
                         "keyId": key_id,
-                        "getSubordinate": "1",
-                        "updateDetailKeyId": "detailKey",
                         "values": {
-                            "details": detail_rows
+                            "113100": ["決済完了"],  # 進捗（配列）
                         }
-                    }
-                    res2 = requests.post(url, headers=headers, json=detail_payload, timeout=10)
-                    if res2.status_code == 200:
-                        write_log(f"  [2/2 成功] keyId={key_id} 明細{len(detail_rows)}行追加完了（ガス種={gas_type}）")
+                    }, timeout=10)
+                    if res.status_code == 200:
+                        write_log(f"  [決済完了] keyId={key_id} 進捗を「決済完了」に更新しました")
+                        payment_count += 1
                     else:
-                        write_log(f"  [2/2 失敗] keyId={key_id} 明細追加失敗: {res2.status_code} {res2.text}")
+                        write_log(f"  [決済完了 失敗] keyId={key_id}: {res.status_code} {res.text}")
                     time.sleep(1.0)
                 except Exception as e:
-                    write_log(f"  [2/2 例外] keyId={key_id} 明細追加中にエラー: {e}")
+                    write_log(f"  [決済完了 例外] keyId={key_id}: {e}")
 
-    write_log(f"=== 処理完了: 合計 {update_count} 件を処理しました ===")
+        # ── 顧客情報更新 ──
+        if entry.get("type") != "customer":
+            continue
+
+        update_count += 1
+
+        orderer = order["OrdererModel"]
+        package = order["PackageModelList"][0]
+        sender = package["SenderModel"]
+        remarks = order.get("remarks", "")
+
+        match = re.search(r"(\d{4})-(\d{2})-(\d{2})", remarks)
+        delivery_date = f"{match.group(1)}{match.group(2)}{match.group(3)}" if match else ""
+
+        # ── 全SKU IDを収集（ガス種・進捗判定に使用）──
+        all_sku_ids = []
+        for item in package.get("ItemModelList", []):
+            for sku in item.get("SkuModelList", []):
+                sid = sku.get("merchantDefinedSkuId", "")
+                if sid:
+                    all_sku_ids.append(sid)
+
+        # ── ガス種：最初に見つかったものを採用 ──
+        gas_type = "なし"
+        for item in package.get("ItemModelList", []):
+            for sku in item.get("SkuModelList", []):
+                g = parse_gas_type(sku.get("skuInfo", ""))
+                if g in ("都市ガス", "LPガス"):
+                    gas_type = g
+                    break
+            if gas_type in ("都市ガス", "LPガス"):
+                break
+
+        # ── 進捗判定 ──
+        progress = parse_progress(all_sku_ids)
+
+        # ── 明細行を構築（商品キーごとに1行）──
+        detail_rows = []
+        for item in package.get("ItemModelList", []):
+            units = str(item.get("units", 1))
+            for sku in item.get("SkuModelList", []):
+                keys = extract_product_keys(sku.get("merchantDefinedSkuId", ""))
+                for key in keys:
+                    detail_rows.append({
+                        "113053": key,   # 商品選択（DBリンク）
+                        "113058": units  # 個数
+                    })
+
+        if not detail_rows:
+            write_log(f"  [WARN] keyId={key_id}: 商品キーが抽出できませんでした。ヘッダのみ更新します。")
+
+        # ── 1回目: ヘッダ項目のみ更新（getSubordinateなし）──
+        try:
+            header_payload = {
+                "dbSchemaId": RAKURAKU_SCHEMA_ID,
+                "keyId": key_id,
+                "values": {
+                    "113811": f"{orderer['phoneNumber1']}-{orderer['phoneNumber2']}-{orderer['phoneNumber3']}",
+                    "113772": str(order["totalPrice"]),
+                    "113095": f"{sender['zipCode1']}{sender['zipCode2']}",
+                    "113073": delivery_date,
+                    "113096": sender['prefecture'],
+                    "113097": sender['city'],
+                    "113098": sender['subAddress'],
+                    "113089": f"{sender['phoneNumber1']}-{sender['phoneNumber2']}-{sender['phoneNumber3']}",
+                    "113051": gas_type,                          # ガスの種類
+                    "113100": [progress] if progress else [],    # 進捗
+                }
+            }
+            res1 = requests.post(url, headers=headers, json=header_payload, timeout=10)
+            if res1.status_code == 200:
+                write_log(f"  [1/2 成功] keyId={key_id} ヘッダ更新完了")
+            else:
+                write_log(f"  [1/2 失敗] keyId={key_id} ヘッダ更新失敗: {res1.status_code} {res1.text}")
+            time.sleep(1.0)
+        except Exception as e:
+            write_log(f"  [1/2 例外] keyId={key_id} ヘッダ更新中にエラー: {e}")
+
+        # ── 2回目: 商品明細追加（getSubordinate=1）──
+        if detail_rows:
+            try:
+                detail_payload = {
+                    "dbSchemaId": RAKURAKU_SCHEMA_ID,
+                    "keyId": key_id,
+                    "getSubordinate": "1",
+                    "updateDetailKeyId": "detailKey",
+                    "values": {
+                        "details": detail_rows
+                    }
+                }
+                res2 = requests.post(url, headers=headers, json=detail_payload, timeout=10)
+                if res2.status_code == 200:
+                    write_log(f"  [2/2 成功] keyId={key_id} 明細{len(detail_rows)}行追加完了（ガス種={gas_type}）")
+                else:
+                    write_log(f"  [2/2 失敗] keyId={key_id} 明細追加失敗: {res2.status_code} {res2.text}")
+                time.sleep(1.0)
+            except Exception as e:
+                write_log(f"  [2/2 例外] keyId={key_id} 明細追加中にエラー: {e}")
+
+    write_log(f"=== 処理完了: 顧客情報更新 {update_count} 件 / 決済完了更新 {payment_count} 件 ===")
 
 if __name__ == "__main__":
     main()
