@@ -69,7 +69,7 @@ def parse_gas_type(sku_info):
         return "なし"
     if "都市" in sku_info:
         return "都市ガス"
-    if "LP" in sku_info:
+    if "LP" in sku_info or "プロパン" in sku_info:
         return "プロパンガス"
     return "なし"
 
