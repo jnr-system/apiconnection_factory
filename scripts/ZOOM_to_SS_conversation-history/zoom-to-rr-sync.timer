@@ -1,0 +1,9 @@
+[Unit]
+Description=Zoom ZRA → 楽楽販売 対応履歴反映 タイマー (1時間毎)
+
+[Timer]
+OnCalendar=*:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
