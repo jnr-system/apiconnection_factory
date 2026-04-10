@@ -1,0 +1,12 @@
+[Unit]
+Description=Zoom ZRA → 楽楽販売 対応履歴反映（ポーリングモード）
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/project/apiconnection_factory/scripts/ZOOM_to_RR_sync
+EnvironmentFile=/etc/apiconnection.env
+ExecStart=/root/project/apiconnection_factory/venv/bin/python zoom_to_RR_conversation-history.py
+StandardOutput=journal
+StandardError=journal
