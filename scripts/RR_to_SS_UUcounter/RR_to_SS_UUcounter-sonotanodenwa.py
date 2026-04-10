@@ -327,10 +327,6 @@ def main():
 
     df_target["最終ラベル"] = final_labels
 
-    log_filename = f"log_問い合わせ集計_{target_dates[0].strftime('%Y%m%d')}_{target_dates[-1].strftime('%Y%m%d')}.csv"
-    df_target.to_csv(log_filename, index=False, encoding="utf-8-sig")
-    write_log(f"ログを保存しました: {log_filename}")
-
     update_spreadsheet_cells(df_target, target_dates)
     
     write_log("全処理完了。")
