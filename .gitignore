@@ -212,3 +212,6 @@ __marimo__/
 *.xlsx
 *.csv
 scripts/RR_to_SS_seiyakuprocess/snapshots/
+
+# API マニュアル（参照用・管理不要）
+*.pdf
