@@ -25,8 +25,10 @@ except ImportError:
 # ==============================================================================
 SPREADSHEET_KEY = "1jmBAudOWcED7D9jIxAVvpXBfvwgJIV4B1TEJEfkVs-w"
 
-# ★「北海道の1日」が始まるセル位置（ここを基準に列をずらします）
-BASE_CELL = "B3"
+# ★各データの「北海道の1日」が始まるセル位置（ここを基準に列をずらします）
+BASE_CELL_MIN_TEMP   = "B3"   # 最低気温
+BASE_CELL_PRECIP     = "B51"  # 降水量（合計）
+BASE_CELL_HUMIDITY   = "B99"  # 湿度（平均）
 
 LOG_FILE_PATH = Path(__file__).parent / "execution_log.txt"
 
@@ -97,44 +99,34 @@ ALL_CITIES = [
 # データ取得関数
 # ==============================================================================
 def scrape_jma_target_day(city_config, year, month, target_day):
-    """指定された日のデータだけを抽出して返す"""
+    """指定された日の最低気温・降水量合計・湿度平均を返す"""
     prec = city_config["prec_no"]
     block = city_config["block_no"]
-    # サイト構造上、月間一覧ページが最も軽量で取得しやすいためそこから取得
     url = f"https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php?prec_no={prec}&block_no={block}&year={year}&month={month}&day=&view="
 
     try:
         dfs = pd.read_html(url, header=0)
         df = dfs[0]
-        
-        # 必要な列（日付と最低気温）のみ抽出
-        # ※サイトの列構成: 0=日付, 8=最低気温
-        target_df = df.iloc[:, [0, 8]].copy()
-        target_df.columns = ["day", "min_temp"]
-        
-        # 文字列型に統一
-        target_df["day"] = target_df["day"].astype(str)
-        target_df["min_temp"] = target_df["min_temp"].astype(str)
 
-        # ターゲット日の行を検索
-        # "1" とか "15" という文字列でマッチング
+        # ※サイトの列構成: 0=日付, 3=降水量合計, 8=最低気温, 9=湿度平均
+        target_df = df.iloc[:, [0, 3, 8, 9]].copy()
+        target_df.columns = ["day", "precip", "min_temp", "humidity"]
+
+        target_df["day"] = target_df["day"].astype(str)
+
         row = target_df[target_df["day"] == str(target_day)]
-        
+
         if row.empty:
-            return "-"
-        
-        val = row.iloc[0]["min_temp"]
-        
-        # --- クリーニング ---
-        val = val.replace("nan", "-")
-        val = val.replace("'", "").replace("]", "").replace(")", "")
-        if not val.strip():
-            return "-"
-            
-        return val
+            return "-", "-", "-"
+
+        def clean(val):
+            val = str(val).replace("nan", "-").replace("'", "").replace("]", "").replace(")", "")
+            return "-" if not val.strip() else val
+
+        return clean(row.iloc[0]["min_temp"]), clean(row.iloc[0]["precip"]), clean(row.iloc[0]["humidity"])
 
     except Exception:
-        return "-"
+        return "-", "-", "-"
 
 # ==============================================================================
 # メイン処理
@@ -154,24 +146,34 @@ def main():
     write_log(f"{target_year}年{target_month}月{target_day}日分のデータを取得します -> シート名: {sheet_name}")
 
 
-    # 2. 書き込み位置の計算
-    # BASE_CELL (B62) は "1日" の列。
-    # ターゲット日が "N日" なら、列を (N-1) だけ右にずらす。
-    base_row, base_col = a1_to_rowcol(BASE_CELL)
-    
-    target_col = base_col + (target_day - 1)
-    target_cell_a1 = rowcol_to_a1(base_row, target_col)
-    
-    write_log(f"書き込み開始セル: {target_cell_a1} (日付: {target_day}日)")
+    # 2. 書き込み位置の計算（各データ種別ごと）
+    col_offset = target_day - 1
+
+    def calc_cell(base_cell):
+        r, c = a1_to_rowcol(base_cell)
+        return r, c + col_offset
+
+    r_temp,     c_temp     = calc_cell(BASE_CELL_MIN_TEMP)
+    r_precip,   c_precip   = calc_cell(BASE_CELL_PRECIP)
+    r_humidity, c_humidity = calc_cell(BASE_CELL_HUMIDITY)
+
+    cell_temp     = rowcol_to_a1(r_temp,     c_temp)
+    cell_precip   = rowcol_to_a1(r_precip,   c_precip)
+    cell_humidity = rowcol_to_a1(r_humidity, c_humidity)
+
+    write_log(f"書き込みセル: 最低気温={cell_temp}, 降水量={cell_precip}, 湿度={cell_humidity} (日付: {target_day}日)")
 
     # 3. データ収集（前日分のみ）
-    # 縦一列分のリストを作成する [[Hokkaido], [Aomori], ...]
-    col_data = []
+    col_min_temp  = []
+    col_precip    = []
+    col_humidity  = []
 
     for city in ALL_CITIES:
-        val = scrape_jma_target_day(city, target_year, target_month, target_day)
-        col_data.append([val]) # gspreadは [[val1], [val2]] の形式で行ごとの値を表現する
-        time.sleep(0.1) # サーバー負荷軽減
+        min_temp, precip, humidity = scrape_jma_target_day(city, target_year, target_month, target_day)
+        col_min_temp.append([min_temp])
+        col_precip.append([precip])
+        col_humidity.append([humidity])
+        time.sleep(0.1)
 
     # 4. 書き込み
     try:
@@ -185,18 +187,17 @@ def main():
             sheet = workbook.worksheet(sheet_name)
         except:
             write_log(f"シート '{sheet_name}' がないため新規作成します。")
-            sheet = workbook.add_worksheet(title=sheet_name, rows="100", cols="40")
+            sheet = workbook.add_worksheet(title=sheet_name, rows="150", cols="40")
 
-        # ピンポイント書き込み（1列×47行分）
-        sheet.update(range_name=target_cell_a1, values=col_data)
-        
-        # 右寄せ（書き込んだ列だけ）
-        # 書き込み範囲の終了行を計算
-        end_row = base_row + len(col_data) - 1
-        range_string = f"{target_cell_a1}:{rowcol_to_a1(end_row, target_col)}"
-        
-        sheet.format(range_string, {"horizontalAlignment": "RIGHT"})
-        
+        def write_col(start_cell, start_row, start_col, data):
+            sheet.update(range_name=start_cell, values=data)
+            end_row = start_row + len(data) - 1
+            sheet.format(f"{start_cell}:{rowcol_to_a1(end_row, start_col)}", {"horizontalAlignment": "RIGHT"})
+
+        write_col(cell_temp,     r_temp,     c_temp,     col_min_temp)
+        write_col(cell_precip,   r_precip,   c_precip,   col_precip)
+        write_col(cell_humidity, r_humidity, c_humidity, col_humidity)
+
         write_log(f"完了: スプレッドシートへ書き込みました。")
 
     except Exception as e:
