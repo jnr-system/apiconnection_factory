@@ -120,10 +120,16 @@ def scrape_jma_target_day(city_config, year, month, target_day):
             return "-", "-", "-"
 
         def clean(val):
-            val = str(val).replace("nan", "-").replace("'", "").replace("]", "").replace(")", "")
-            return "-" if not val.strip() else val
+            val = str(val).replace("nan", "-").replace("'", "").replace("]", "").replace(")", "").strip()
+            return "-" if not val else val
 
-        return clean(row.iloc[0]["min_temp"]), clean(row.iloc[0]["precip"]), clean(row.iloc[0]["humidity"])
+        def clean_precip(val):
+            val = str(val).replace("nan", "0.0").replace("'", "").replace("]", "").replace(")", "").strip()
+            if not val or val in ("--", "-"):
+                return "0.0"
+            return val
+
+        return clean(row.iloc[0]["min_temp"]), clean_precip(row.iloc[0]["precip"]), clean(row.iloc[0]["humidity"])
 
     except Exception:
         return "-", "-", "-"
