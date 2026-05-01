@@ -48,69 +48,70 @@ DB_CONFIGS = [
             "cost": "原価", "construction": "施工金額", "type": "商品タイプ",
             "contract_date": "成約日",
             "status": "進捗",
-            "request_type": "依頼内容"
+            "request_type": "依頼内容",
+            "profit": "利益"
         },
         "contract_targets": [
             {"label": "成約_今年分（統合）", "view_id": "107257", "list_id": "101360"}
         ],
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "", "cost": "", "const": "", "count": "AK24"},
-            "future_cells": {"billing": "AK22", "cost": "", "const": "", "count": "", "count_b": "AK23"},
-            "extra_future_cells": {"billing": "AK28", "cost": "AK29", "const": "AK30"},
+            "cells": {"billing": "", "cost": "", "const": "", "count": "AK25"},
+            "future_cells": {"billing": "AK22", "cost": "", "const": "", "count": "", "count_b": "AK24", "profit": "AK23"},
+            "extra_future_cells": {"billing": "AK29", "cost": "AK30", "const": "AK31"},
             "contract_cells": {
                 "billing": "AK13", "count": "AK12",
                 "cancel_count": "AK14",
                 "sum_count": "AK15",
                 "complete_count": "AK16",
                 "next_month_count": "AK17",
-                "rework_current_month_count": "AK18", "rework_current_month_count_b": "AK25",
-                "rework_next_month_count": "AK19", "rework_next_month_count_b": "AK26",
+                "rework_current_month_count": "AK18", "rework_current_month_count_b": "AK26",
+                "rework_next_month_count": "AK19", "rework_next_month_count_b": "AK27",
                 "pending_count": "AK20"
             }
         },
         "category_settings": [
             {"label": "給湯器", "keyword": "給湯器",
-             "cells": {"billing": "AK46", "cost": "AK47", "const": "AK48", "count": ""},
-             "future_cells": {"billing": "AK68", "cost": "", "const": "", "count": "AK69"},
-             "extra_count_cell": "AK57", "extra_count_cell_b": "AK70",
+             "cells": {"billing": "AK47", "cost": "AK48", "const": "AK49", "count": ""},
+             "future_cells": {"billing": "AK69", "cost": "", "const": "", "count": "AK70"},
+             "extra_count_cell": "AK58", "extra_count_cell_b": "AK71",
              "contract_cells": {
-                 "billing": "AK59", "count": "AK58",
-                 "cancel_count": "AK60",
-                 "sum_count": "AK61",
-                 "complete_count": "AK62",
-                 "next_month_count": "AK63",
-                 "rework_current_month_count": "AK64", "rework_current_month_count_b": "AK71",
-                 "rework_next_month_count": "AK65", "rework_next_month_count_b": "AK72",
-                 "pending_count": "AK66"
+                 "billing": "AK60", "count": "AK59",
+                 "cancel_count": "AK61",
+                 "sum_count": "AK62",
+                 "complete_count": "AK63",
+                 "next_month_count": "AK64",
+                 "rework_current_month_count": "AK65", "rework_current_month_count_b": "AK72",
+                 "rework_next_month_count": "AK66", "rework_next_month_count_b": "AK73",
+                 "pending_count": "AK67"
              }},
             {"label": "エコキュート", "keyword": "エコキュート",
-             "cells": {"billing": "AK73", "cost": "AK74", "const": "AK75", "count": ""},
-             "future_cells": {"billing": "AK95", "cost": "", "const": "", "count": "AK96"},
-             "extra_count_cell": "AK84", "extra_count_cell_b": "AK97",
+             "cells": {"billing": "AK74", "cost": "AK75", "const": "AK76", "count": ""},
+             "future_cells": {"billing": "AK96", "cost": "", "const": "", "count": "AK97"},
+             "extra_count_cell": "AK85", "extra_count_cell_b": "AK98",
              "contract_cells": {
-                 "billing": "AK86", "count": "AK85",
-                 "cancel_count": "AK87",
-                 "sum_count": "AK88",
-                 "complete_count": "AK89",
-                 "next_month_count": "AK90",
-                 "rework_current_month_count": "AK91", "rework_current_month_count_b": "AK98",
-                 "rework_next_month_count": "AK92", "rework_next_month_count_b": "AK99",
-                 "pending_count": "AK93"
+                 "billing": "AK87", "count": "AK86",
+                 "cancel_count": "AK88",
+                 "sum_count": "AK89",
+                 "complete_count": "AK90",
+                 "next_month_count": "AK91",
+                 "rework_current_month_count": "AK92", "rework_current_month_count_b": "AK99",
+                 "rework_next_month_count": "AK93", "rework_next_month_count_b": "AK100",
+                 "pending_count": "AK94"
              }},
             {"label": "コンロ", "keyword": "コンロ",
-             "cells": {"billing": "AK100", "cost": "AK101", "const": "AK102", "count": ""},
-             "future_cells": {"billing": "AK122", "cost": "", "const": "", "count": "AK123"},
-             "extra_count_cell": "AK111", "extra_count_cell_b": "AK124",
+             "cells": {"billing": "AK101", "cost": "AK102", "const": "AK103", "count": ""},
+             "future_cells": {"billing": "AK123", "cost": "", "const": "", "count": "AK124"},
+             "extra_count_cell": "AK112", "extra_count_cell_b": "AK125",
              "contract_cells": {
-                 "billing": "AK113", "count": "AK112",
-                 "cancel_count": "AK114",
-                 "sum_count": "AK115",
-                 "complete_count": "AK116",
-                 "next_month_count": "AK117",
-                 "rework_current_month_count": "AK118", "rework_current_month_count_b": "AK125",
-                 "rework_next_month_count": "AK119", "rework_next_month_count_b": "AK126",
-                 "pending_count": "AK120"
+                 "billing": "AK114", "count": "AK113",
+                 "cancel_count": "AK115",
+                 "sum_count": "AK116",
+                 "complete_count": "AK117",
+                 "next_month_count": "AK118",
+                 "rework_current_month_count": "AK119", "rework_current_month_count_b": "AK126",
+                 "rework_next_month_count": "AK120", "rework_next_month_count_b": "AK127",
+                 "pending_count": "AK121"
              }}
         ]
     },
@@ -127,7 +128,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK160", "cost": "AK161", "const": "AK162"},
+            "cells": {"billing": "AK161", "cost": "AK162", "const": "AK163"},
             "future_cells": {}
         },
         "category_settings": []
@@ -145,7 +146,7 @@ DB_CONFIGS = [
         },
         "total_settings": {
             "enabled": True,
-            "cells": {"billing": "AK164", "cost": "AK165", "const": "AK166"},
+            "cells": {"billing": "AK165", "cost": "AK166", "const": "AK167"},
             "future_cells": {}
         },
         "category_settings": []
@@ -274,18 +275,19 @@ def main():
                         if keyword in col_name: return i
                     return -1
 
-                idx_id    = find_idx(keywords["id"])
-                idx_bill  = find_idx(keywords["billing"])
-                idx_date  = find_idx(keywords["date"])
-                idx_cost  = find_idx(keywords["cost"])
-                idx_const = find_idx(keywords["construction"])
-                idx_type  = find_idx(keywords["type"])
+                idx_id     = find_idx(keywords["id"])
+                idx_bill   = find_idx(keywords["billing"])
+                idx_date   = find_idx(keywords["date"])
+                idx_cost   = find_idx(keywords["cost"])
+                idx_const  = find_idx(keywords["construction"])
+                idx_type   = find_idx(keywords["type"])
+                idx_profit = find_idx(keywords.get("profit", ""))
 
                 if idx_date == -1:
                     write_log(f"  エラー: 日付列『{keywords['date']}』が見つかりません。")
                     continue
 
-                max_idx = max(idx_id, idx_bill, idx_date, idx_cost, idx_const, idx_type)
+                max_idx = max(idx_id, idx_bill, idx_date, idx_cost, idx_const, idx_type, idx_profit if idx_profit != -1 else 0)
                 count_rows = 0
 
                 for row in rows[1:]:
@@ -299,10 +301,11 @@ def main():
                     if not val_id or val_id in processed_daily_ids:
                         continue
 
-                    val_bill  = to_int(row[idx_bill])  if idx_bill  != -1 else 0
-                    val_cost  = to_int(row[idx_cost])  if idx_cost  != -1 else 0
-                    val_const = to_int(row[idx_const]) if idx_const != -1 else 0
-                    val_type  = row[idx_type].strip()  if idx_type  != -1 else ""
+                    val_bill   = to_int(row[idx_bill])   if idx_bill   != -1 else 0
+                    val_cost   = to_int(row[idx_cost])   if idx_cost   != -1 else 0
+                    val_const  = to_int(row[idx_const])  if idx_const  != -1 else 0
+                    val_type   = row[idx_type].strip()   if idx_type   != -1 else ""
+                    val_profit = to_int(row[idx_profit]) if idx_profit != -1 else 0
 
                     # ── 施工日ベースの集計 ──
                     val_date_str = row[idx_date].strip().replace('"', '').replace("'", "")
@@ -316,11 +319,12 @@ def main():
                     if fmt_date not in daily_store: daily_store[fmt_date] = {}
 
                     if "total" not in daily_store[fmt_date]:
-                        daily_store[fmt_date]["total"] = {"billing":0, "cost":0, "const":0, "count":0}
+                        daily_store[fmt_date]["total"] = {"billing":0, "cost":0, "const":0, "count":0, "profit":0}
 
                     daily_store[fmt_date]["total"]["billing"] += val_bill
                     daily_store[fmt_date]["total"]["cost"]    += val_cost
                     daily_store[fmt_date]["total"]["const"]   += val_const
+                    daily_store[fmt_date]["total"]["profit"]  += val_profit
                     if val_bill > 0: daily_store[fmt_date]["total"]["count"] += 1
 
                     if db_config["category_settings"]:
@@ -332,10 +336,11 @@ def main():
                                     break
                         if matched_label:
                             if matched_label not in daily_store[fmt_date]:
-                                daily_store[fmt_date][matched_label] = {"billing":0, "cost":0, "const":0, "count":0}
+                                daily_store[fmt_date][matched_label] = {"billing":0, "cost":0, "const":0, "count":0, "profit":0}
                             daily_store[fmt_date][matched_label]["billing"] += val_bill
                             daily_store[fmt_date][matched_label]["cost"]    += val_cost
                             daily_store[fmt_date][matched_label]["const"]   += val_const
+                            daily_store[fmt_date][matched_label]["profit"]  += val_profit
                             if val_bill > 0: daily_store[fmt_date][matched_label]["count"] += 1
 
                     processed_daily_ids.add(val_id)
@@ -647,8 +652,8 @@ def main():
                 
                 past_cells   = settings_dict.get("cells", {})
                 future_cells = settings_dict.get("future_cells", {})
-                p_bill, p_cost, p_const, p_count = [], [], [], []
-                f_bill, f_cost, f_const, f_count = [], [], [], []
+                p_bill, p_cost, p_const, p_count, p_profit = [], [], [], [], []
+                f_bill, f_cost, f_const, f_count, f_profit = [], [], [], [], []
 
                 for day in range(start_day, end_day + 1):
                     date_key = f"{year}/{month:02}/{day:02}"
@@ -656,18 +661,19 @@ def main():
                     if date_key in daily_store:
                         if label_key == "total": data = daily_store[date_key].get("total")
                         else: data = daily_store[date_key].get(label_key)
-                    
-                    val_bill  = data["billing"] if data else 0
-                    val_cost  = data["cost"]    if data else 0
-                    val_const = data["const"]   if data else 0
-                    val_count = data["count"]   if data else 0
+
+                    val_bill   = data["billing"] if data else 0
+                    val_cost   = data["cost"]    if data else 0
+                    val_const  = data["const"]   if data else 0
+                    val_count  = data["count"]   if data else 0
+                    val_profit = data["profit"]  if data and "profit" in data else 0
 
                     if datetime(year, month, day) < today_date:
-                        p_bill.append(val_bill); p_cost.append(val_cost); p_const.append(val_const); p_count.append(val_count)
-                        f_bill.append(""); f_cost.append(""); f_const.append(""); f_count.append("")
+                        p_bill.append(val_bill); p_cost.append(val_cost); p_const.append(val_const); p_count.append(val_count); p_profit.append(val_profit)
+                        f_bill.append(""); f_cost.append(""); f_const.append(""); f_count.append(""); f_profit.append("")
                     else:
-                        p_bill.append(""); p_cost.append(""); p_const.append(""); p_count.append("")
-                        f_bill.append(val_bill); f_cost.append(val_cost); f_const.append(val_const); f_count.append(val_count)
+                        p_bill.append(""); p_cost.append(""); p_const.append(""); p_count.append(""); p_profit.append("")
+                        f_bill.append(val_bill); f_cost.append(val_cost); f_const.append(val_const); f_count.append(val_count); f_profit.append(val_profit)
 
                 def smart_update(p_cell, f_cell, p_data, f_data, is_count=False, preserve_past=False):
                     if not p_cell and not f_cell: return
@@ -713,6 +719,7 @@ def main():
                 smart_update(past_cells.get("billing"), future_cells.get("billing"), p_bill, f_bill, is_count=False)
                 smart_update(past_cells.get("cost"),    future_cells.get("cost"),    p_cost, f_cost, is_count=False)
                 smart_update(past_cells.get("const"),   future_cells.get("const"),   p_const, f_const, is_count=False)
+                smart_update(past_cells.get("profit"),  future_cells.get("profit"),  p_profit, f_profit, is_count=False)
                 smart_update(past_cells.get("count"),   future_cells.get("count"),   p_count, f_count, is_count=True, preserve_past=True)
                 if future_cells.get("count_b"):
                     smart_update(None, future_cells.get("count_b"), p_count, f_count, is_count=True, preserve_past=True)
