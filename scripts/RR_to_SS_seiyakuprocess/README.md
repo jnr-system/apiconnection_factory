@@ -205,6 +205,38 @@ python RR_to_SS_seiyakuprocess-kinkyustatus.py
 
 ---
 
+## ファイル構成
+
+| ファイル | 説明 |
+|---|---|
+| `RR_to_SS_seiyakuprocess-joukyoustatus.py` | 対応状況ステータスベースのスクリプト |
+| `RR_to_SS_seiyakuprocess-kinkyustatus.py` | 緊急度ステータスベースのスクリプト |
+| `rr-seiyakuprocess.service` | systemd サービスユニットファイル |
+| `rr-seiyakuprocess.timer` | systemd タイマーユニットファイル（1時間毎） |
+| `execution_log.txt` | 実行ログ（自動生成・追記） |
+
+---
+
+## systemd による定期実行（Linux サーバー）
+
+1時間毎に自動実行されます。
+
+```bash
+# ファイルをコピー
+sudo cp rr-seiyakuprocess.service /etc/systemd/system/
+sudo cp rr-seiyakuprocess.timer /etc/systemd/system/
+
+# デーモン再読み込み・有効化・起動
+sudo systemctl daemon-reload
+sudo systemctl enable rr-seiyakuprocess.timer
+sudo systemctl start rr-seiyakuprocess.timer
+
+# 状態確認
+sudo systemctl status rr-seiyakuprocess.timer
+```
+
+---
+
 ## 使用ライブラリ
 
 | ライブラリ | 用途 |

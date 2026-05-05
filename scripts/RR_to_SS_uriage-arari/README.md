@@ -154,6 +154,38 @@ python RR_to_SS_uriage-arari_combine.py
 
 ---
 
+## ファイル構成
+
+| ファイル | 説明 |
+|---|---|
+| `RR_to_SS_uriage-arari_combine.py` | メインスクリプト（3DB統合版） |
+| `rr-uriage-arari.service` | systemd サービスユニットファイル |
+| `rr-uriage-arari.timer` | systemd タイマーユニットファイル（毎日8時） |
+| `execution_csv_log.txt` | 実行ログ（自動生成・追記） |
+| `.env_template` | ローカル開発用環境変数テンプレート |
+
+---
+
+## systemd による定期実行（Linux サーバー）
+
+毎日8時に自動実行されます。
+
+```bash
+# ファイルをコピー
+sudo cp rr-uriage-arari.service /etc/systemd/system/
+sudo cp rr-uriage-arari.timer /etc/systemd/system/
+
+# デーモン再読み込み・有効化・起動
+sudo systemctl daemon-reload
+sudo systemctl enable rr-uriage-arari.timer
+sudo systemctl start rr-uriage-arari.timer
+
+# 状態確認
+sudo systemctl status rr-uriage-arari.timer
+```
+
+---
+
 ## 使用ライブラリ
 
 | ライブラリ | 用途 |

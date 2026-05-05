@@ -2,11 +2,23 @@
 
 ## 概要
 
-楽楽販売に登録された「待機中の注文」に対して、楽天RMS（受注管理システム）から対応する注文情報を取得し、顧客情報・配送先情報・商品明細・ガス種・進捗を楽楽販売のレコードへ自動転記するスクリプトです。
+楽楽販売（L業務管理DB）と楽天RMS間の受注・出荷情報を双方向に同期する3本のスクリプト群です。
+
+| スクリプト | 方向 | 概要 |
+|---|---|---|
+| `RR_to_RMS_Lstage-customerdata.py` | RMS → 楽楽販売 | 待機中注文に対しRMSから顧客情報・配送先・商品明細を取得して楽楽販売へ転記 |
+| `RMS_to_RR_Lstage-shippingday-reflect.py` | RMS → 楽楽販売 | RMSに登録された出荷日を楽楽販売へ反映し、進捗を「納期回答あり」に更新 |
+| `RR_to_RMS_Lstage-shippingday-kouzi.py` | 楽楽販売 → RMS | 楽楽販売の「工事手配完了」レコードのメーカー出荷日をRMSへ出荷確定として登録 |
 
 ---
 
-## 処理の流れ
+## スクリプト詳細
+
+---
+
+### 1. RR_to_RMS_Lstage-customerdata.py（30分毎）
+
+#### 処理の流れ
 
 ```
 楽楽販売（CSVエクスポートAPI）
@@ -23,51 +35,33 @@
 完了ログ出力
 ```
 
----
+#### 詳細な処理内容
 
-## 詳細な処理内容
-
-### 1. 楽楽販売から待機データを取得 (`get_rakuraku_targets()`)
-
-- CSVエクスポートAPI (`/api/csvexport/version/v1`) を使用
+**楽楽販売から待機データを取得**
 - 対象DB: `dbSchemaId=101357`、絞り込み設定: `searchId=105786`
 - 最大1,000件を取得し、**配送先郵便番号（39列目）が空のレコードのみ**対象とする
-  - 郵便番号が入っている = 更新済みとして除外
-- 1列目（楽楽キーID）と2列目（楽天注文番号）から `{注文番号: キーID}` の辞書を作成
-- レスポンスは CP932 でデコード（失敗時は ignore オプションで継続）
 
-### 2. 楽天RMS APIから注文情報を取得 (`get_rms_orders()`)
-
-**認証**
-- サービスシークレットとライセンスキーを `Base64(secret:key)` 形式でエンコードし、`Authorization: ESA {token}` ヘッダーで送信
-
-**注文検索 (searchOrder)**
+**楽天RMS APIから注文情報を取得**
 - 検索期間: 現在時刻から3日前まで（JST）
-- 1ページあたり最大1,000件、最大4ページまで取得（上限設定）
-- ページにデータがなくなれば早期終了
-
-**注文詳細取得 (getOrder)**
-- 収集した注文番号を100件ずつに分割してバッチリクエスト
+- 1ページあたり最大1,000件、最大4ページ（上限設定）
 - `version: "7"` で `merchantDefinedSkuId`・`skuInfo` を含む詳細データを取得
 
-### 3. 楽楽販売レコードの更新 (`main()`)
+**楽楽販売レコードの更新（1件につき2回APIコール）**
 
-RMS注文番号と楽楽販売のマップが一致した場合、1件につき2回APIを呼び出します。
-
-**1回目: ヘッダ更新（`getSubordinate` なし）**
-
-| フィールドID | 内容 | RMSデータソース |
-|---|---|---|
-| `113811` | 注文者の電話番号 | `OrdererModel.phoneNumber1-2-3` |
-| `113772` | 注文合計金額 | `totalPrice` |
-| `113095` | 配送先郵便番号 | `SenderModel.zipCode1+zipCode2` |
-| `113073` | 配送希望日 | `remarks` フィールドを正規表現 `\d{4}-\d{2}-\d{2}` でパース |
-| `113096` | 配送先都道府県 | `SenderModel.prefecture` |
-| `113097` | 配送先市区町村 | `SenderModel.city` |
-| `113098` | 配送先番地・建物名 | `SenderModel.subAddress` |
-| `113089` | 配送先電話番号 | `SenderModel.phoneNumber1-2-3` |
-| `113051` | ガスの種類 | `skuInfo` から判定（都市ガス / LPガス / なし） |
-| `113100` | 進捗 | `merchantDefinedSkuId` から判定（下記参照） |
+| フィールドID | 内容 |
+|---|---|
+| `113811` | 注文者電話番号 |
+| `113772` | 注文合計金額 |
+| `113095` | 配送先郵便番号 |
+| `113073` | 配送希望日（remarks から正規表現でパース） |
+| `113096` | 配送先都道府県 |
+| `113097` | 配送先市区町村 |
+| `113098` | 配送先番地・建物名 |
+| `113089` | 配送先電話番号 |
+| `113051` | ガスの種類（都市ガス / LPガス / なし） |
+| `113100` | 進捗（`merchantDefinedSkuId` から判定） |
+| `113053` | 商品選択（2回目: DBリンク） |
+| `113058` | 個数（2回目） |
 
 **進捗の判定ロジック**
 
@@ -79,17 +73,48 @@ RMS注文番号と楽楽販売のマップが一致した場合、1件につき2
 | `楽天倉庫在庫` | 楽天倉庫在庫 |
 | いずれも含まない | （空） |
 
-**2回目: 商品明細追加（`getSubordinate=1`）**
+---
 
-- `merchantDefinedSkuId` から9桁の数字を正規表現で抽出し、商品キーとして登録
-- 商品キー1つにつき1明細行を追加
+### 2. RMS_to_RR_Lstage-shippingday-reflect.py（毎日9時）
 
-| フィールドID | 内容 |
-|---|---|
-| `113053` | 商品選択（DBリンク） |
-| `113058` | 個数 |
+#### 処理の流れ
 
-連続アクセス防止のため、各APIコール後に **1秒のスリープ** を入れています。
+```
+楽楽販売（CSVエクスポートAPI）
+   ↓ 進捗「納期回答待ち」のレコードを最大1,000件取得（searchId: 105790）
+楽天RMS API（注文検索 + 注文詳細取得）
+   ↓ 過去30日分の注文を最大10ページ取得
+   ↓ 100件ずつバッチで注文詳細（出荷日）を取得
+楽楽販売（レコード更新API）
+   ↓ 楽天注文番号で照合し一致したレコードの出荷日（113102）を書き込み
+   ↓ 進捗（113100）を「納期回答あり」に更新
+完了ログ出力（execution_log_shippingday_reflect.txt）
+```
+
+#### 特徴
+- `--dry-run` オプション付きで実行すると楽楽販売への書き込みを行わず結果のみ表示
+- RMSに出荷日が未登録の注文はスキップ
+
+---
+
+### 3. RR_to_RMS_Lstage-shippingday-kouzi.py（毎日9時）
+
+#### 処理の流れ
+
+```
+楽楽販売（CSVエクスポートAPI）
+   ↓ 進捗「工事手配完了」のレコードを最大100件取得（searchId: 105858）
+   ↓ 「注文ID」「楽天受注番号」「メーカー出荷日」列を取得
+楽天RMS API（getOrder 一括照会）
+   ↓ 出荷日が未登録の注文のみ対象に絞り込み
+楽天RMS API（updateOrderShipping）
+   ↓ 配送会社「その他」・伝票番号「-」でRMS出荷確定を登録
+完了ログ出力（execution_log_kouzi.txt）
+```
+
+#### 特徴
+- `--dry-run` オプション付きで実行するとRMSへの書き込みを行わず結果のみ表示
+- RMSにすでに出荷日が登録済みの注文は重複登録しないようスキップ
 
 ---
 
@@ -97,11 +122,19 @@ RMS注文番号と楽楽販売のマップが一致した場合、1件につき2
 
 | ファイル | 説明 |
 |---|---|
-| `RR_to_RMS_Lstage-customerdata.py` | メインスクリプト |
-| `rr-customerdata.service` | systemd サービスユニットファイル |
-| `rr-customerdata.timer` | systemd タイマーユニットファイル（定期実行設定） |
-| `execution_log.txt` | 実行ログ（自動生成・追記） |
-| `.env` | ローカル開発用の環境変数ファイル（Git管理外） |
+| `RR_to_RMS_Lstage-customerdata.py` | 顧客情報転記スクリプト |
+| `rr-customerdata.service` | 顧客情報転記 systemd サービス |
+| `rr-customerdata.timer` | 顧客情報転記 systemd タイマー（30分毎） |
+| `RMS_to_RR_Lstage-shippingday-reflect.py` | RMS出荷日→楽楽販売反映スクリプト |
+| `rms-to-rr-shippingday-reflect.service` | 出荷日反映 systemd サービス |
+| `rms-to-rr-shippingday-reflect.timer` | 出荷日反映 systemd タイマー（毎日9時） |
+| `RR_to_RMS_Lstage-shippingday-kouzi.py` | 工事手配完了→RMS出荷確定スクリプト |
+| `rr-to-rms-shippingday-kouzi.service` | 出荷確定 systemd サービス |
+| `rr-to-rms-shippingday-kouzi.timer` | 出荷確定 systemd タイマー（毎日9時） |
+| `execution_log.txt` | 顧客情報転記ログ（自動生成） |
+| `execution_log_shippingday_reflect.txt` | 出荷日反映ログ（自動生成） |
+| `execution_log_kouzi.txt` | 出荷確定ログ（自動生成） |
+| `.env` | ローカル開発用環境変数ファイル（Git管理外） |
 
 ---
 
@@ -114,29 +147,53 @@ RMS注文番号と楽楽販売のマップが一致した場合、1件につき2
 | `RMS_LICENSE_KEY` | 楽天RMS ライセンスキー |
 
 > ローカル実行時は同フォルダの `.env` ファイルに記述（`python-dotenv` が自動読み込み）。
-> 本番環境では GitHub Actions Secrets または OS の環境変数として設定してください。
+> 本番環境では `/etc/apiconnection.env` に設定してください。
 
 ---
 
 ## 実行方法
 
 ```bash
+# 顧客情報転記
 python RR_to_RMS_Lstage-customerdata.py
-```
 
-ログは同フォルダの `execution_log.txt` に追記されます。
+# RMS出荷日→楽楽販売反映（--dry-run で書き込みなし確認可）
+python RMS_to_RR_Lstage-shippingday-reflect.py [--dry-run]
+
+# 工事手配完了→RMS出荷確定（--dry-run で書き込みなし確認可）
+python RR_to_RMS_Lstage-shippingday-kouzi.py [--dry-run]
+```
 
 ---
 
 ## systemd による定期実行（Linux サーバー）
 
 ```bash
-# サービスとタイマーを有効化
+# 顧客情報転記（30分毎）
+sudo cp rr-customerdata.service /etc/systemd/system/
+sudo cp rr-customerdata.timer /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable rr-customerdata.timer
 sudo systemctl start rr-customerdata.timer
 
+# 出荷日反映（毎日9時）
+sudo cp rms-to-rr-shippingday-reflect.service /etc/systemd/system/
+sudo cp rms-to-rr-shippingday-reflect.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable rms-to-rr-shippingday-reflect.timer
+sudo systemctl start rms-to-rr-shippingday-reflect.timer
+
+# 出荷確定（毎日9時）
+sudo cp rr-to-rms-shippingday-kouzi.service /etc/systemd/system/
+sudo cp rr-to-rms-shippingday-kouzi.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable rr-to-rms-shippingday-kouzi.timer
+sudo systemctl start rr-to-rms-shippingday-kouzi.timer
+
 # 状態確認
 sudo systemctl status rr-customerdata.timer
+sudo systemctl status rms-to-rr-shippingday-reflect.timer
+sudo systemctl status rr-to-rms-shippingday-kouzi.timer
 ```
 
 ---

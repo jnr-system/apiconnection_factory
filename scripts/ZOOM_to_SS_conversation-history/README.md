@@ -1,4 +1,4 @@
-# ZOOM_to_RR_sync
+# ZOOM_to_SS_conversation-history
 
 ## 概要
 

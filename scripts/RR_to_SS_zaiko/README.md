@@ -91,6 +91,38 @@ python RR_to_SS_zaiko.py
 
 ---
 
+## ファイル構成
+
+| ファイル | 説明 |
+|---|---|
+| `RR_to_SS_zaiko.py` | メインスクリプト |
+| `rr-zaiko.service` | systemd サービスユニットファイル |
+| `rr-zaiko.timer` | systemd タイマーユニットファイル（6時間毎） |
+| `execution_log.txt` | 実行ログ（自動生成・追記） |
+| `.env` | ローカル開発用環境変数ファイル（Git管理外） |
+
+---
+
+## systemd による定期実行（Linux サーバー）
+
+6時間毎（0時・6時・12時・18時）に自動実行されます。
+
+```bash
+# ファイルをコピー
+sudo cp rr-zaiko.service /etc/systemd/system/
+sudo cp rr-zaiko.timer /etc/systemd/system/
+
+# デーモン再読み込み・有効化・起動
+sudo systemctl daemon-reload
+sudo systemctl enable rr-zaiko.timer
+sudo systemctl start rr-zaiko.timer
+
+# 状態確認
+sudo systemctl status rr-zaiko.timer
+```
+
+---
+
 ## 注意事項
 
 - 本スクリプトは**洗い替え（全件削除→全件挿入）**方式を採用しています。既存データはすべて上書きされます。

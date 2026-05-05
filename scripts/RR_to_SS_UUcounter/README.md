@@ -135,6 +135,26 @@ python RR_to_SS_UUcounter-sonotanodenwa.py
 
 ---
 
+## systemd による定期実行（Linux サーバー）
+
+毎日8時に自動実行されます。
+
+```bash
+# ファイルをコピー
+sudo cp rr-uucounter.service /etc/systemd/system/
+sudo cp rr-uucounter.timer /etc/systemd/system/
+
+# デーモン再読み込み・有効化・起動
+sudo systemctl daemon-reload
+sudo systemctl enable rr-uucounter.timer
+sudo systemctl start rr-uucounter.timer
+
+# 状態確認
+sudo systemctl status rr-uucounter.timer
+```
+
+---
+
 ## 使用ライブラリ
 
 | ライブラリ | 用途 |

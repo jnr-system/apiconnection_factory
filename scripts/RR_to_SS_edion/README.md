@@ -82,7 +82,7 @@ Googleスプレッドシート
 |---|---|
 | `RR_to_SS_edion.py` | メインスクリプト |
 | `rr-ss-edion.service` | systemd サービスユニットファイル |
-| `rr-ss-edion.timer` | systemd タイマーユニットファイル（15分毎） |
+| `rr-ss-edion.timer` | systemd タイマーユニットファイル（1時間毎） |
 | `execution_log.txt` | 実行ログ（自動生成・追記） |
 | `.env` | ローカル開発用の環境変数ファイル（Git管理外） |
 

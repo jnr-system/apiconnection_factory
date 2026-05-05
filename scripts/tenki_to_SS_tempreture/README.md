@@ -125,8 +125,15 @@ python tenki_to_SS_tempreture.py
 
 ## systemd による定期実行（Linux サーバー）
 
+毎日8時に自動実行されます。
+
 ```bash
-# サービスとタイマーを有効化
+# ファイルをコピー
+sudo cp tenki-temperature.service /etc/systemd/system/
+sudo cp tenki-temperature.timer /etc/systemd/system/
+
+# デーモン再読み込み・有効化・起動
+sudo systemctl daemon-reload
 sudo systemctl enable tenki-temperature.timer
 sudo systemctl start tenki-temperature.timer
 
