@@ -1,0 +1,9 @@
+[Unit]
+Description=楽楽販売→RMS 工事手配完了 出荷日反映処理 タイマー (毎日9時)
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

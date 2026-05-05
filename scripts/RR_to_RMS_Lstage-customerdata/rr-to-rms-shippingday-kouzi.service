@@ -1,0 +1,12 @@
+[Unit]
+Description=楽楽販売→RMS 工事手配完了 出荷日反映処理
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/project/apiconnection_factory/scripts/RR_to_RMS_Lstage-customerdata
+EnvironmentFile=/etc/apiconnection.env
+ExecStart=/root/project/apiconnection_factory/venv/bin/python RR_to_RMS_Lstage-shippingday-kouzi.py
+StandardOutput=journal
+StandardError=journal
