@@ -396,7 +396,7 @@ def main():
         update_payload = {
             "dbSchemaId": RAKURAKU_SCHEMA_ID,
             "keyId":      record_id,
-            "values":     {"115979": "1"},  # SS連携済み（エディオン）
+            "values":     {"115979": "1", "109604": "B：追い炊き給湯器、給湯専用、コンロ、その他"},  # SS連携済み（エディオン）
         }
         try:
             upd_res = requests.post(update_url, headers=update_headers, json=update_payload, timeout=10)
