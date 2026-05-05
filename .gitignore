@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # Custom Logs
-*log.txt
+*.txt
 *.log
 *.xlsx
 *.csv
